@@ -243,6 +243,33 @@ const API = {
     },
 
     /**
+     * 获取缓存信息
+     */
+    async getCacheInfo() {
+        const response = await fetch('/api/config/cache/info');
+        if (!response.ok) {
+            throw new Error('获取缓存信息失败');
+        }
+        return await response.json();
+    },
+
+    /**
+     * 清除缓存
+     */
+    async clearCache(cacheType) {
+        const response = await fetch(`/api/config/cache/${cacheType}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '清除缓存失败');
+        }
+        
+        return await response.json();
+    },
+
+    /**
      * 测试ASR连接
      */
     async testAsrConnection() {
@@ -260,5 +287,65 @@ const API = {
             method: 'POST'
         });
         return await response.json();
+    },
+
+    /**
+     * 优化口语化文本
+     */
+    async polishText(text, taskId = null) {
+        const response = await fetch('/api/polish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, task_id: taskId })
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '优化失败');
+        }
+        
+        return await response.json();
+    },
+
+    /**
+     * 流式优化口语化文本
+     */
+    polishTextStream(text, taskId, onChunk, onDone, onError) {
+        fetch('/api/polish/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text, task_id: taskId })
+        }).then(response => {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            
+            function read() {
+                reader.read().then(({ done, value }) => {
+                    if (done) return;
+                    
+                    const text = decoder.decode(value);
+                    const lines = text.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.type === 'chunk') {
+                                    onChunk(data.text);
+                                } else if (data.type === 'done') {
+                                    onDone(data);
+                                } else if (data.type === 'error') {
+                                    onError(new Error(data.message));
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                    
+                    read();
+                });
+            }
+            
+            read();
+        }).catch(onError);
     }
 };

@@ -73,8 +73,8 @@ class StorageService:
         return record
     
     def update_record(self, record_id: str, summary: str = None, 
-                      key_points: list[str] = None) -> Optional[HistoryRecord]:
-        """更新历史记录（添加总结）"""
+                      key_points: list[str] = None, polished_text: str = None) -> Optional[HistoryRecord]:
+        """更新历史记录（添加总结或优化文本）"""
         records = self._load_records()
         
         for i, record in enumerate(records):
@@ -83,6 +83,8 @@ class StorageService:
                     records[i]["summary"] = summary
                 if key_points:
                     records[i]["key_points"] = key_points
+                if polished_text:
+                    records[i]["polished_text"] = polished_text
                 self._save_records(records)
                 return HistoryRecord(**records[i])
         
@@ -148,6 +150,10 @@ class StorageService:
         if record.duration:
             content += f"时长: {record.duration:.1f}秒\n"
         content += f"\n【转写内容】\n{record.transcription}\n"
+        
+        if record.polished_text:
+            content += f"\n{'=' * 50}\n"
+            content += f"【优化后内容】\n{record.polished_text}\n"
         
         if record.summary:
             content += f"\n{'=' * 50}\n"

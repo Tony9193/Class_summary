@@ -38,6 +38,7 @@ class HistoryRecord(BaseModel):
     created_at: str
     duration: Optional[float] = None
     transcription: str
+    polished_text: Optional[str] = None
     summary: Optional[str] = None
     key_points: Optional[list[str]] = None
 
@@ -46,3 +47,9 @@ class HistoryListResponse(BaseModel):
     """历史记录列表响应"""
     total: int
     records: list[HistoryRecord]
+
+
+class PolishRequest(BaseModel):
+    """口语优化请求"""
+    text: str
+    task_id: Optional[str] = None

@@ -4,15 +4,27 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green.svg)](https://fastapi.tiangolo.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-将课程录音快速转化为结构清晰的文字笔记和知识要点，大幅提升学习效率。
+> 将课程录音快速转化为结构清晰的文字笔记和知识要点，大幅提升学习效率。
 
 ## ✨ 功能特性
 
+### 核心功能
 - 🎤 **音频转写** - 支持上传音频文件或实时录音，通过ASR语音识别转写为文字
 - 🤖 **AI智能总结** - 由AI大模型生成结构化课程总结、知识点提取
+- ✨ **口语优化** - AI自动去除语气词，将口语化内容转为规范书面语
+- 🔊 **音频降噪** - 支持课堂录音降噪处理，提升转写准确率
 - 📝 **历史记录** - 转写记录管理、搜索、导出
+
+### 界面特色
+- 🎨 **Material Design 3** - 现代化 Material Design 风格界面
+- 🌙 **夜间模式** - 护眼深色主题，保护视力
+- 🎯 **多主题色** - 7种主题颜色可选（紫/蓝/绿/橙/红/青/粉）
+- 💾 **缓存管理** - 可视化管理音频文件和历史记录缓存
+
+### 其他特性
 - 💻 **双模式使用** - 支持CLI命令行和Web UI两种使用方式
-- 🎯 **多格式支持** - 支持 MP3、WAV、OGG、M4A、FLAC、AAC、WMA、WebM
+- 🎯 **多格式支持** - MP3、WAV、OGG、M4A、FLAC、AAC、WMA、WebM
+- 📱 **响应式设计** - 适配不同屏幕尺寸
 
 ## 🛠️ 技术栈
 
@@ -21,7 +33,8 @@
 | 后端框架 | Python + FastAPI |
 | ASR语音识别 | 阶跃星辰 StepAudio 2.5 ASR |
 | AI总结 | OpenAI兼容接口（DeepSeek、小米MiMo等） |
-| 前端 | HTML + Tailwind CSS |
+| 前端 | HTML + CSS + JavaScript |
+| UI风格 | Material Design 3 |
 | 数据存储 | JSON文件 |
 
 ## 📦 快速开始
@@ -62,7 +75,7 @@ python cli.py config set --llm-key sk-xxxxx --llm-url https://api.deepseek.com -
 
 **方式三：Web界面配置**
 
-启动服务后，点击右上角 ⚙️ 设置按钮进行配置。
+启动服务后，点击右上角「设置」按钮进行配置。
 
 **方式四：手动编辑 .env 文件**
 
@@ -118,9 +131,14 @@ python cli.py serve
 | `/api/asr/transcribe/stream` | POST | ASR转写（SSE流式） |
 | `/api/summary/generate` | POST | 生成AI总结 |
 | `/api/summary/generate/stream` | POST | 流式生成AI总结 |
+| `/api/polish` | POST | 口语优化 |
+| `/api/polish/stream` | POST | 流式口语优化 |
 | `/api/history/list` | GET | 获取历史记录列表 |
 | `/api/history/{id}` | GET/DELETE | 查询/删除记录 |
 | `/api/history/export/{id}` | GET | 导出记录 |
+| `/api/config` | GET/PUT | 获取/保存配置 |
+| `/api/config/cache/info` | GET | 获取缓存信息 |
+| `/api/config/cache/{type}` | DELETE | 清除缓存 |
 
 ## 📁 目录结构
 
@@ -130,12 +148,21 @@ Class_summury/
 │   ├── main.py                   # FastAPI主入口
 │   ├── config.py                 # 配置管理
 │   ├── routers/                  # API路由
+│   │   ├── audio.py              # 音频上传
+│   │   ├── asr.py                # ASR转写
+│   │   ├── summary.py            # AI总结
+│   │   ├── polish.py             # 口语优化
+│   │   ├── history.py            # 历史记录
+│   │   └── config.py             # 配置管理
 │   ├── services/                 # 业务逻辑
 │   └── models/                   # 数据模型
 ├── static/                       # 前端静态文件
 │   ├── index.html                # 主页面
-│   ├── css/style.css             # 样式
+│   ├── css/style.css             # Material Design样式
 │   └── js/                       # JavaScript
+│       ├── api.js                # API调用
+│       ├── app.js                # 主逻辑
+│       └── recorder.js           # 录音模块
 ├── data/                         # 数据存储（已gitignore）
 │   ├── uploads/                  # 上传的音频
 │   └── history/                  # 历史记录
@@ -153,6 +180,14 @@ Class_summury/
 | 阶跃星辰 | https://platform.stepfun.com |
 | DeepSeek | https://platform.deepseek.com |
 | 小米MiMo | https://platform.xiaomimimo.com |
+
+## 🎨 界面预览
+
+### 主题颜色
+支持 7 种主题颜色：紫色（默认）、蓝色、绿色、橙色、红色、青色、粉色
+
+### 夜间模式
+支持深色主题，保护眼睛，可在设置中切换
 
 ## 🤝 贡献
 
@@ -172,4 +207,4 @@ Class_summury/
 
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [阶跃星辰](https://platform.stepfun.com)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Material Design 3](https://m3.material.io/)

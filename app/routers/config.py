@@ -1,9 +1,11 @@
 """配置管理路由"""
+import os
+import shutil
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from app.config import get_config, save_config
+from app.config import get_config, save_config, UPLOADS_DIR, HISTORY_DIR
 
 router = APIRouter(prefix="/api/config", tags=["配置"])
 
@@ -104,3 +106,105 @@ async def test_llm_connection():
         return {"success": True, "message": f"连接成功，模型: {model}"}
     except Exception as e:
         return {"success": False, "message": f"连接失败: {str(e)}"}
+
+
+def get_dir_size(dir_path: str) -> int:
+    """获取目录大小（字节）"""
+    total_size = 0
+    if os.path.exists(dir_path):
+        for dirpath, dirnames, filenames in os.walk(dir_path):
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                if os.path.exists(fp):
+                    total_size += os.path.getsize(fp)
+    return total_size
+
+
+def format_size(size_bytes: int) -> str:
+    """格式化文件大小"""
+    if size_bytes < 1024:
+        return f"{size_bytes} B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.1f} KB"
+    elif size_bytes < 1024 * 1024 * 1024:
+        return f"{size_bytes / (1024 * 1024):.1f} MB"
+    else:
+        return f"{size_bytes / (1024 * 1024 * 1024):.1f} GB"
+
+
+@router.delete("/cache/{cache_type}")
+async def clear_cache(cache_type: str):
+    """清除缓存"""
+    # 验证缓存类型
+    valid_types = ["uploads", "history", "all"]
+    if cache_type not in valid_types:
+        raise HTTPException(status_code=400, detail=f"无效的缓存类型: {cache_type}，有效类型: {valid_types}")
+    
+    try:
+        if cache_type == "uploads":
+            # 清除上传的音频文件
+            if UPLOADS_DIR.exists():
+                for item in UPLOADS_DIR.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+            return {"success": True, "message": "音频文件缓存已清除"}
+        
+        elif cache_type == "history":
+            # 清除历史记录
+            if HISTORY_DIR.exists():
+                for item in HISTORY_DIR.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+            return {"success": True, "message": "历史记录已清除"}
+        
+        elif cache_type == "all":
+            # 清除所有缓存
+            if UPLOADS_DIR.exists():
+                for item in UPLOADS_DIR.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+            
+            if HISTORY_DIR.exists():
+                for item in HISTORY_DIR.iterdir():
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+            
+            return {"success": True, "message": "所有缓存已清除"}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"清除缓存失败: {str(e)}")
+
+
+@router.get("/cache/info")
+async def get_cache_info():
+    """获取缓存信息"""
+    uploads_size = get_dir_size(str(UPLOADS_DIR))
+    history_size = get_dir_size(str(HISTORY_DIR))
+    
+    return {
+        "success": True,
+        "cache_info": {
+            "uploads": {
+                "size": uploads_size,
+                "size_formatted": format_size(uploads_size),
+                "path": str(UPLOADS_DIR)
+            },
+            "history": {
+                "size": history_size,
+                "size_formatted": format_size(history_size),
+                "path": str(HISTORY_DIR)
+            },
+            "all": {
+                "size": uploads_size + history_size,
+                "size_formatted": format_size(uploads_size + history_size)
+            }
+        }
+    }
