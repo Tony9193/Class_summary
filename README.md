@@ -208,3 +208,7 @@ Class_summury/
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [阶跃星辰](https://platform.stepfun.com)
 - [Material Design 3](https://m3.material.io/)
+
+### 特别感谢
+
+特别感谢 **小米 MiMo 模型** 的 [Orbit 百万亿 Token 计划](https://platform.xiaomimimo.com)，赠送了 MAX 等级的模型额度，极大地帮助了本项目的开发！
