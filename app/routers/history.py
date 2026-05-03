@@ -23,6 +23,21 @@ async def list_records(
     }
 
 
+@router.get("/export/{record_id}")
+async def export_record(record_id: str):
+    """导出记录"""
+    content = storage_service.export_record(record_id)
+    if not content:
+        raise HTTPException(status_code=404, detail="记录不存在")
+    
+    return PlainTextResponse(
+        content,
+        headers={
+            "Content-Disposition": f"attachment; filename=record_{record_id}.txt"
+        }
+    )
+
+
 @router.get("/{record_id}")
 async def get_record(record_id: str):
     """获取单条记录"""
@@ -44,18 +59,3 @@ async def delete_record(record_id: str):
         raise HTTPException(status_code=404, detail="记录不存在")
     
     return {"success": True, "message": "删除成功"}
-
-
-@router.get("/export/{record_id}")
-async def export_record(record_id: str):
-    """导出记录"""
-    content = storage_service.export_record(record_id)
-    if not content:
-        raise HTTPException(status_code=404, detail="记录不存在")
-    
-    return PlainTextResponse(
-        content,
-        headers={
-            "Content-Disposition": f"attachment; filename=record_{record_id}.txt"
-        }
-    )

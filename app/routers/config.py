@@ -16,6 +16,7 @@ class ConfigUpdate(BaseModel):
     llm_api_key: Optional[str] = None
     llm_base_url: Optional[str] = None
     llm_model: Optional[str] = None
+    denoise_method: Optional[str] = None
 
 
 @router.get("")
@@ -36,6 +37,7 @@ async def get_current_config():
             "llm_api_key": mask_key(config["llm_api_key"]),
             "llm_base_url": config["llm_base_url"],
             "llm_model": config["llm_model"],
+            "denoise_method": config.get("denoise_method", "afftdn"),
             "step_api_key_set": bool(config["step_api_key"]),
             "llm_api_key_set": bool(config["llm_api_key"])
         }
@@ -53,6 +55,8 @@ async def update_config(request: ConfigUpdate):
         update_data = request.model_dump(exclude_unset=True)
         for key, value in update_data.items():
             if value is not None and value != "":
+                if key == "denoise_method" and value not in ("afftdn", "noisereduce"):
+                    continue
                 current[key] = value
         
         # 保存配置

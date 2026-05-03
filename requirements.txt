@@ -8,3 +8,7 @@ click==8.1.7
 pydantic==2.6.0
 sse-starlette==2.0.0
 pydub==0.25.1
+noisereduce==3.0.3
+scipy==1.14.1
+numpy==1.26.4
+soundfile==0.12.1

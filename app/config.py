@@ -31,6 +31,7 @@ def get_config():
         "llm_api_key": os.getenv("LLM_API_KEY", ""),
         "llm_base_url": os.getenv("LLM_BASE_URL", "https://api.deepseek.com"),
         "llm_model": os.getenv("LLM_MODEL", "deepseek-v4-flash"),
+        "denoise_method": os.getenv("DENOISE_METHOD", "afftdn"),
         "host": os.getenv("HOST", "0.0.0.0"),
         "port": int(os.getenv("PORT", "8000"))
     }
@@ -69,6 +70,12 @@ def get_llm_base_url():
 def get_llm_model():
     """获取LLM模型名称"""
     return os.getenv("LLM_MODEL", "deepseek-v4-flash")
+
+
+def get_denoise_method():
+    """获取降噪方法"""
+    method = os.getenv("DENOISE_METHOD", "afftdn")
+    return method if method in ("afftdn", "noisereduce") else "afftdn"
 
 
 # 服务器配置

@@ -6,10 +6,11 @@ const API = {
     /**
      * 上传音频文件
      */
-    async uploadAudio(file, enableDenoise = false) {
+    async uploadAudio(file, enableDenoise = false, denoiseMethod = 'afftdn') {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('enable_denoise', enableDenoise);
+        formData.append('denoise_method', denoiseMethod);
         
         const response = await fetch('/api/audio/upload', {
             method: 'POST',

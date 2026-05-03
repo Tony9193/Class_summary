@@ -6,7 +6,7 @@
     <title>课程录音转文字+AI智能总结</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=6">
+    <link rel="stylesheet" href="/static/css/style.css?v=8">
 </head>
 <body>
     <!-- Material Design 顶部应用栏 -->
@@ -305,6 +305,28 @@
 
                 <div class="md-divider"></div>
 
+                <!-- 音频降噪设置 -->
+                <h3 style="font-size: 14px; font-weight: 500; color: var(--md-primary); margin: 16px 0 12px;">
+                    🎤 音频降噪
+                </h3>
+
+                <div style="margin-bottom: 16px;">
+                    <p style="font-size: 14px; font-weight: 500; color: var(--md-on-surface); margin-bottom: 8px;">降噪算法</p>
+                    <div class="md-segmented-button" style="width: 100%;">
+                        <button onclick="setDenoiseMethod('afftdn')" id="btn-denoise-afftdn" class="md-segmented-button-item active" style="flex: 1;">
+                            FFmpeg 传统
+                        </button>
+                        <button onclick="setDenoiseMethod('noisereduce')" id="btn-denoise-noisereduce" class="md-segmented-button-item" style="flex: 1;">
+                            AI 频谱降噪
+                        </button>
+                    </div>
+                    <p style="font-size: 12px; color: var(--md-on-surface-variant); margin-top: 8px;">
+                        <span id="denoise-method-desc">FFmpeg afftdn：速度快，适合一般噪声环境</span>
+                    </p>
+                </div>
+
+                <div class="md-divider"></div>
+
                 <!-- 缓存管理部分 -->
                 <h3 style="font-size: 14px; font-weight: 500; color: var(--md-primary); margin: 16px 0 12px;">
                     💾 缓存管理
@@ -365,8 +387,8 @@
         </div>
     </div>
 
-    <script src="/static/js/api.js?v=7"></script>
-    <script src="/static/js/recorder.js?v=7"></script>
-    <script src="/static/js/app.js?v=7"></script>
+    <script src="/static/js/api.js?v=8"></script>
+    <script src="/static/js/recorder.js?v=8"></script>
+    <script src="/static/js/app.js?v=8"></script>
 </body>
 </html>

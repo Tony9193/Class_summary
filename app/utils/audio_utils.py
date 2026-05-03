@@ -4,6 +4,9 @@ import os
 from pathlib import Path
 from typing import List
 
+import numpy as np
+import soundfile as sf
+
 from app.config import UPLOADS_DIR
 
 # ASR单次上传最大限制 (40MB，留一些余量)
@@ -28,24 +31,72 @@ def get_audio_size(file_path: str) -> int:
     return os.path.getsize(file_path)
 
 
-def denoise_audio(input_path: str, output_path: str) -> str:
+def denoise_audio(input_path: str, output_path: str, method: str = "afftdn") -> str:
     """
     音频降噪处理
-    使用ffmpeg的afftdn滤波器进行降噪
+    
+    Args:
+        input_path: 输入音频路径
+        output_path: 输出音频路径
+        method: 降噪方法 "afftdn"(FFmpeg) 或 "noisereduce"(AI频谱降噪)
     """
     try:
-        # 使用afftdn降噪滤波器
-        cmd = [
-            "ffmpeg", "-y", "-i", input_path,
-            "-af", "afftdn=nf=-25",  # 降噪强度，nf越小降噪越强
-            "-ar", "16000",  # 统一采样率
-            "-ac", "1",      # 单声道
-            output_path
-        ]
-        subprocess.run(cmd, capture_output=True, check=True)
-        return output_path
+        if method == "noisereduce":
+            return _denoise_noisereduce(input_path, output_path)
+        else:
+            return _denoise_afftdn(input_path, output_path)
     except subprocess.CalledProcessError as e:
         raise Exception(f"降噪处理失败: {e.stderr.decode()}")
+    except Exception as e:
+        raise Exception(f"降噪处理失败: {str(e)}")
+
+
+def _denoise_afftdn(input_path: str, output_path: str) -> str:
+    """FFmpeg afftdn 降噪"""
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-af", "afftdn=nf=-25",
+        "-ar", "16000",
+        "-ac", "1",
+        output_path
+    ]
+    subprocess.run(cmd, capture_output=True, check=True)
+    return output_path
+
+
+def _denoise_noisereduce(input_path: str, output_path: str) -> str:
+    """Noisereduce 频谱降噪（基于AI，效果更好）"""
+    import noisereduce as nr
+    
+    # 先转为WAV 16kHz mono 供noisereduce处理
+    wav_path = output_path + ".tmp.wav"
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-ar", "16000", "-ac", "1",
+        "-acodec", "pcm_s16le",
+        wav_path
+    ]
+    subprocess.run(cmd, capture_output=True, check=True)
+    
+    # 读取音频数据
+    audio_data, sr = sf.read(wav_path)
+    
+    # 使用noisereduce降噪
+    reduced_noise = nr.reduce_noise(
+        y=audio_data.astype(np.float32),
+        sr=sr,
+        prop_decrease=0.8,
+        stationary=False
+    )
+    
+    # 保存降噪后的音频
+    sf.write(output_path, reduced_noise, sr)
+    
+    # 清理临时文件
+    if os.path.exists(wav_path):
+        os.remove(wav_path)
+    
+    return output_path
 
 
 def split_audio(input_path: str, chunk_duration: int = 300) -> List[str]:
@@ -102,6 +153,7 @@ def split_audio(input_path: str, chunk_duration: int = 300) -> List[str]:
 
 
 def preprocess_audio(input_path: str, enable_denoise: bool = False, 
+                     denoise_method: str = "afftdn",
                      enable_split: bool = True) -> dict:
     """
     音频预处理主函数
@@ -109,6 +161,7 @@ def preprocess_audio(input_path: str, enable_denoise: bool = False,
     Args:
         input_path: 输入音频路径
         enable_denoise: 是否启用降噪
+        denoise_method: 降噪方法 "afftdn" 或 "noisereduce"
         enable_split: 是否启用大文件切割
     
     Returns:
@@ -116,6 +169,7 @@ def preprocess_audio(input_path: str, enable_denoise: bool = False,
             "chunks": [文件路径列表],
             "original_duration": 原始时长,
             "denoised": 是否进行了降噪,
+            "denoise_method": 使用的降噪方法,
             "split": 是否进行了切割
         }
     """
@@ -123,6 +177,7 @@ def preprocess_audio(input_path: str, enable_denoise: bool = False,
         "chunks": [],
         "original_duration": get_audio_duration(input_path),
         "denoised": False,
+        "denoise_method": denoise_method if enable_denoise else None,
         "split": False
     }
     
@@ -131,7 +186,7 @@ def preprocess_audio(input_path: str, enable_denoise: bool = False,
     # 1. 降噪处理
     if enable_denoise:
         denoised_path = str(UPLOADS_DIR / f"denoised_{Path(input_path).name}")
-        current_path = denoise_audio(input_path, denoised_path)
+        current_path = denoise_audio(input_path, denoised_path, method=denoise_method)
         result["denoised"] = True
     
     # 2. 切割处理（如果文件超过限制）

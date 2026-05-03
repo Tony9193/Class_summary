@@ -143,7 +143,7 @@ python cli.py serve
 ## 📁 目录结构
 
 ```
-Class_summury/
+Class_summary/
 ├── app/                          # 后端应用
 │   ├── main.py                   # FastAPI主入口
 │   ├── config.py                 # 配置管理
@@ -211,4 +211,4 @@ Class_summury/
 
 ### 特别感谢
 
-特别感谢 **小米 MiMo 模型** 的 [Orbit 百万亿 Token 计划](https://platform.xiaomimimo.com)，赠送了 MAX 等级的模型额度，极大地帮助了本项目的开发！
+特别感谢 **小米 MiMo 模型** 的 [Orbit 百万亿 Token 计划](https://platform.xiaomimimo.com/docs/zh-CN/news/v2.5-open-sourced?target=%E5%88%9B%E9%80%A0%E8%80%85%E7%99%BE%E4%B8%87%E4%BA%BF-token-%E6%BF%80%E5%8A%B1%E8%AE%A1%E5%88%92)，赠送了 MAX 等级的模型额度，极大地帮助了本项目的开发！

@@ -89,7 +89,7 @@ async function startTranscribe() {
     
     try {
         // 上传文件（含降噪处理）
-        const uploadResult = await API.uploadAudio(currentFile, enableDenoise);
+        const uploadResult = await API.uploadAudio(currentFile, enableDenoise, currentDenoiseMethod);
         currentFilePath = uploadResult.file_path;
         currentChunks = uploadResult.chunks;
         
@@ -219,7 +219,7 @@ async function toggleRecording() {
             try {
                 // 将Blob转换为File
                 const file = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
-                const uploadResult = await API.uploadAudio(file, enableDenoise);
+                const uploadResult = await API.uploadAudio(file, enableDenoise, currentDenoiseMethod);
                 currentFilePath = uploadResult.file_path;
                 currentChunks = uploadResult.chunks;
                 
@@ -612,6 +612,13 @@ async function loadConfig() {
         const llmStatus = document.getElementById('llm-key-status');
         llmStatus.textContent = config.llm_api_key_set ? '✓ 已配置' : '✗ 未配置';
         llmStatus.style.color = config.llm_api_key_set ? '#4CAF50' : '#F44336';
+        
+        // 同步降噪方法（服务器配置优先）
+        if (config.denoise_method) {
+            currentDenoiseMethod = config.denoise_method;
+            localStorage.setItem('denoiseMethod', currentDenoiseMethod);
+            setDenoiseMethodUI(currentDenoiseMethod);
+        }
     } catch (error) {
         showToast('加载配置失败: ' + error.message, 'error');
     }
@@ -722,6 +729,9 @@ async function saveSettings() {
     if (llmBaseUrl) config.llm_base_url = llmBaseUrl;
     if (llmModel) config.llm_model = llmModel;
     
+    // 降噪方法
+    config.denoise_method = currentDenoiseMethod;
+    
     try {
         await API.saveConfig(config);
         showToast('配置保存成功！', 'success');
@@ -763,6 +773,7 @@ async function testLlmConnection() {
 // 主题和外观设置
 let currentTheme = localStorage.getItem('theme') || 'purple';
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
+let currentDenoiseMethod = localStorage.getItem('denoiseMethod') || 'afftdn';
 
 /**
  * 初始化主题设置
@@ -778,6 +789,31 @@ function initTheme() {
         if (darkToggle) darkToggle.checked = true;
         const darkIcon = document.getElementById('dark-mode-icon');
         if (darkIcon) darkIcon.textContent = '☀️';
+    }
+    
+    // 初始化降噪方法UI
+    setDenoiseMethodUI(currentDenoiseMethod);
+}
+
+/**
+ * 设置降噪方法UI状态（不触发保存）
+ */
+function setDenoiseMethodUI(method) {
+    const afftdnBtn = document.getElementById('btn-denoise-afftdn');
+    const nrBtn = document.getElementById('btn-denoise-noisereduce');
+    const desc = document.getElementById('denoise-method-desc');
+    
+    if (!afftdnBtn || !nrBtn) return;
+    
+    afftdnBtn.classList.toggle('active', method === 'afftdn');
+    nrBtn.classList.toggle('active', method === 'noisereduce');
+    
+    if (desc) {
+        if (method === 'noisereduce') {
+            desc.textContent = 'AI频谱降噪：基于深度学习，效果更好，处理稍慢';
+        } else {
+            desc.textContent = 'FFmpeg afftdn：速度快，适合一般噪声环境';
+        }
     }
 }
 
@@ -818,4 +854,26 @@ function toggleDarkMode() {
     
     // 保存到本地存储
     localStorage.setItem('darkMode', isDarkMode.toString());
+}
+
+/**
+ * 设置降噪方法
+ */
+function setDenoiseMethod(method) {
+    currentDenoiseMethod = method;
+    
+    // 更新按钮样式
+    document.getElementById('btn-denoise-afftdn').classList.toggle('active', method === 'afftdn');
+    document.getElementById('btn-denoise-noisereduce').classList.toggle('active', method === 'noisereduce');
+    
+    // 更新描述
+    const desc = document.getElementById('denoise-method-desc');
+    if (method === 'noisereduce') {
+        desc.textContent = 'AI频谱降噪：基于深度学习，效果更好，处理稍慢';
+    } else {
+        desc.textContent = 'FFmpeg afftdn：速度快，适合一般噪声环境';
+    }
+    
+    // 保存到本地存储
+    localStorage.setItem('denoiseMethod', method);
 }
