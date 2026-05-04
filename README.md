@@ -5,6 +5,7 @@
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 将课程录音快速转化为结构清晰的文字笔记和知识要点，大幅提升学习效率。
+<img width="2555" height="1232" alt="图片" src="https://github.com/user-attachments/assets/fa2530bb-f96a-429a-85fd-fde9991c8fe6" />
 
 ## ✨ 功能特性
 
@@ -14,6 +15,7 @@
 - ✨ **口语优化** - AI自动去除语气词，将口语化内容转为规范书面语
 - 🔊 **音频降噪** - 支持课堂录音降噪处理，提升转写准确率
 - 📝 **历史记录** - 转写记录管理、搜索、导出
+<img width="1108" height="944" alt="图片" src="https://github.com/user-attachments/assets/b0e50085-85e2-43d5-9736-eea655d41604" />
 
 ### 模型管理（新功能）
 - 🤖 **多模型配置** - 支持配置多个AI模型，灵活切换
@@ -21,16 +23,19 @@
 - 📊 **用量统计** - 记录每个模型的调用次数和Token消耗
 - 🔒 **安全存储** - API Key加密存储，防止意外泄露
 - 🧪 **连接测试** - 一键测试模型配置是否正确
+<img width="760" height="639" alt="图片" src="https://github.com/user-attachments/assets/4cdef036-4908-4589-94d1-8874423b2822" />
 
 ### 录音功能（新功能）
 - 📈 **实时波形图** - 录音时显示实时音频波形和音量指示
 - ⏱️ **录音计时** - 实时显示录音时长
+<img width="889" height="463" alt="图片" src="https://github.com/user-attachments/assets/d90c638a-6035-4742-bc38-ca8f884a9396" />
 
 ### 界面特色
 - 🎨 **Material Design 3** - 现代化 Material Design 风格界面
 - 🌙 **夜间模式** - 护眼深色主题，保护视力
 - 🎯 **多主题色** - 7种主题颜色可选（紫/蓝/绿/橙/红/青/粉）
 - 💾 **缓存管理** - 可视化管理音频文件和历史记录缓存
+<img width="736" height="774" alt="图片" src="https://github.com/user-attachments/assets/fa454884-c5c4-40e3-8258-cd4e66a9c0ba" />
 
 ### 其他特性
 - 💻 **双模式使用** - 支持CLI命令行和Web UI两种使用方式
