@@ -58,7 +58,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/Tony9193/class-summary.git
+git clone https://github.com/Tony9193/Class_summary.git
 cd class-summary
 ```
 
