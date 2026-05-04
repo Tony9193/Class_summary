@@ -6,6 +6,7 @@ from pathlib import Path
 from app.services.asr_service import asr_service
 from app.services.llm_service import llm_service
 from app.services.storage_service import storage_service
+from app.services.model_service import model_service
 from app.config import get_config, save_config
 
 
@@ -239,6 +240,191 @@ def config_setup():
     click.echo("\n现在可以使用以下命令:")
     click.echo("  python cli.py serve          # 启动Web服务")
     click.echo("  python cli.py transcribe xxx  # 转写音频")
+
+
+# ========== 模型管理命令组 ==========
+
+@cli.group()
+def model():
+    """模型配置管理"""
+    pass
+
+
+@model.command('list')
+def model_list():
+    """列出所有模型配置"""
+    models = model_service.get_all_models()
+    active_id = model_service.get_active_model_id()
+    
+    if not models:
+        click.echo("暂未配置任何模型")
+        click.echo("使用 'python cli.py model add' 添加模型")
+        return
+    
+    click.echo(f"共 {len(models)} 个模型配置:\n")
+    for m in models:
+        is_active = "✓ 当前使用" if m["id"] == active_id else ""
+        is_default = "[默认]" if m["is_default"] else ""
+        
+        click.echo(f"  ID: {m['id']} {is_active}")
+        click.echo(f"  名称: {m['display_name']} {is_default}")
+        click.echo(f"  模型: {m['base_url']} / {m['model']}")
+        if m['usage_count'] > 0:
+            click.echo(f"  用量: {m['usage_count']}次调用, {m['total_tokens']} tokens")
+        click.echo("  " + "-" * 40)
+
+
+@model.command('add')
+@click.option('--name', prompt='模型标识名称', help='唯一标识，如 deepseek-chat')
+@click.option('--display-name', prompt='显示名称', help='界面上显示的友好名称')
+@click.option('--api-key', prompt='API Key', hide_input=True, help='API密钥')
+@click.option('--base-url', prompt='Base URL', default='https://api.deepseek.com', help='API地址')
+@click.option('--model-name', prompt='模型名称', default='deepseek-chat', help='实际模型名称')
+@click.option('--description', default=None, help='模型描述')
+@click.option('--set-default', is_flag=True, help='设为默认模型')
+def model_add(name, display_name, api_key, base_url, model_name, description, set_default):
+    """添加模型配置"""
+    try:
+        model = model_service.create_model({
+            "name": name,
+            "display_name": display_name,
+            "api_key": api_key,
+            "base_url": base_url,
+            "model": model_name,
+            "description": description,
+            "is_default": set_default
+        })
+        click.echo(f"\n✓ 模型配置已创建! ID: {model['id']}")
+    except ValueError as e:
+        click.echo(f"\n✗ 创建失败: {e}")
+    except Exception as e:
+        click.echo(f"\n✗ 创建失败: {e}")
+
+
+@model.command('edit')
+@click.argument('model_id')
+@click.option('--api-key', default=None, help='新的API Key')
+@click.option('--base-url', default=None, help='新的Base URL')
+@click.option('--model-name', default=None, help='新的模型名称')
+@click.option('--display-name', default=None, help='新的显示名称')
+@click.option('--set-default', is_flag=True, help='设为默认模型')
+def model_edit(model_id, api_key, base_url, model_name, display_name, set_default):
+    """编辑模型配置"""
+    data = {}
+    if api_key:
+        data["api_key"] = api_key
+    if base_url:
+        data["base_url"] = base_url
+    if model_name:
+        data["model"] = model_name
+    if display_name:
+        data["display_name"] = display_name
+    if set_default:
+        data["is_default"] = True
+    
+    if not data:
+        click.echo("请指定要修改的参数")
+        return
+    
+    result = model_service.update_model(model_id, data)
+    if result:
+        click.echo(f"\n✓ 模型配置已更新!")
+    else:
+        click.echo(f"\n✗ 模型不存在: {model_id}")
+
+
+@model.command('delete')
+@click.argument('model_id')
+@click.option('--yes', '-y', is_flag=True, help='跳过确认')
+def model_delete(model_id, yes):
+    """删除模型配置"""
+    model = model_service.get_model(model_id)
+    if not model:
+        click.echo(f"模型不存在: {model_id}")
+        return
+    
+    if not yes:
+        click.confirm(f"确定要删除模型 '{model['display_name']}' 吗?", abort=True)
+    
+    if model_service.delete_model(model_id):
+        click.echo("✓ 模型已删除")
+    else:
+        click.echo("✗ 删除失败")
+
+
+@model.command('use')
+@click.argument('model_id')
+def model_use(model_id):
+    """切换当前使用的模型"""
+    if model_service.set_active_model(model_id):
+        model = model_service.get_model(model_id)
+        click.echo(f"✓ 已切换到模型: {model['display_name']}")
+    else:
+        click.echo(f"✗ 模型不存在: {model_id}")
+
+
+@model.command('test')
+@click.argument('model_id')
+def model_test(model_id):
+    """测试模型连接"""
+    import asyncio
+    from openai import AsyncOpenAI
+    
+    model = model_service.get_model(model_id)
+    if not model:
+        click.echo(f"模型不存在: {model_id}")
+        return
+    
+    click.echo(f"正在测试模型: {model['display_name']}...")
+    
+    async def _test():
+        try:
+            client = AsyncOpenAI(api_key=model["api_key"], base_url=model["base_url"])
+            response = await client.chat.completions.create(
+                model=model["model"],
+                messages=[{"role": "user", "content": "Hello"}],
+                max_tokens=10
+            )
+            click.echo(f"✓ 连接成功! 模型: {model['model']}")
+            return True
+        except Exception as e:
+            click.echo(f"✗ 连接失败: {e}")
+            return False
+    
+    asyncio.run(_test())
+
+
+@model.command('import-env')
+def model_import_env():
+    """从环境变量导入模型配置"""
+    model = model_service.import_from_env()
+    if model:
+        click.echo(f"✓ 已导入模型: {model['display_name']} (ID: {model['id']})")
+    else:
+        click.echo("没有可导入的配置，或配置已存在")
+
+
+@model.command('usage')
+def model_usage():
+    """查看模型用量统计"""
+    stats = model_service.get_usage_stats()
+    
+    has_usage = any(s["call_count"] > 0 for s in stats)
+    if not has_usage:
+        click.echo("暂无用量记录")
+        return
+    
+    click.echo("模型用量统计:\n")
+    for s in stats:
+        if s["call_count"] > 0:
+            click.echo(f"  {s['display_name']}:")
+            click.echo(f"    调用次数: {s['call_count']}")
+            click.echo(f"    总Token数: {s['total_tokens']}")
+            click.echo(f"    输入Token: {s['prompt_tokens']}")
+            click.echo(f"    输出Token: {s['completion_tokens']}")
+            if s['last_used_at']:
+                click.echo(f"    最后使用: {s['last_used_at']}")
+            click.echo()
 
 
 if __name__ == '__main__':

@@ -38,6 +38,11 @@ ENV/
 data/uploads/
 data/history/
 
+# 模型配置文件（包含API密钥，切勿提交！）
+data/models_config.json
+data/model_usage.json
+data/*.json.bak
+
 # 系统文件
 .DS_Store
 Thumbs.db

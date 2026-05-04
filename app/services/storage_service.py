@@ -1,12 +1,16 @@
 """存储服务"""
 import json
 import uuid
+import shutil
+import logging
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 from app.config import HISTORY_DIR, UPLOADS_DIR
 from app.models.schemas import HistoryRecord, HistoryListResponse
+
+logger = logging.getLogger(__name__)
 
 
 class StorageService:
@@ -27,12 +31,24 @@ class StorageService:
         return self.history_dir / "records.json"
     
     def _load_records(self) -> list[dict]:
-        """加载历史记录"""
+        """加载历史记录（带损坏恢复）"""
         file_path = self._get_history_file()
-        if file_path.exists():
+        if not file_path.exists():
+            return []
+        
+        try:
             with open(file_path, "r", encoding="utf-8") as f:
                 return json.load(f)
-        return []
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON文件损坏: {file_path}, 错误: {e}")
+            # 备份损坏文件
+            backup_path = file_path.with_suffix('.json.corrupt')
+            try:
+                shutil.copy2(file_path, backup_path)
+                logger.info(f"已备份损坏文件到: {backup_path}")
+            except Exception as backup_error:
+                logger.error(f"备份损坏文件失败: {backup_error}")
+            return []
     
     def _save_records(self, records: list[dict]):
         """保存历史记录"""

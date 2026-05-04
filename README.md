@@ -15,6 +15,17 @@
 - 🔊 **音频降噪** - 支持课堂录音降噪处理，提升转写准确率
 - 📝 **历史记录** - 转写记录管理、搜索、导出
 
+### 模型管理（新功能）
+- 🤖 **多模型配置** - 支持配置多个AI模型，灵活切换
+- 🔄 **模型切换** - 顶部栏下拉框快速切换当前使用的模型
+- 📊 **用量统计** - 记录每个模型的调用次数和Token消耗
+- 🔒 **安全存储** - API Key加密存储，防止意外泄露
+- 🧪 **连接测试** - 一键测试模型配置是否正确
+
+### 录音功能（新功能）
+- 📈 **实时波形图** - 录音时显示实时音频波形和音量指示
+- ⏱️ **录音计时** - 实时显示录音时长
+
 ### 界面特色
 - 🎨 **Material Design 3** - 现代化 Material Design 风格界面
 - 🌙 **夜间模式** - 护眼深色主题，保护视力
@@ -35,7 +46,7 @@
 | AI总结 | OpenAI兼容接口（DeepSeek、小米MiMo等） |
 | 前端 | HTML + CSS + JavaScript |
 | UI风格 | Material Design 3 |
-| 数据存储 | JSON文件 |
+| 数据存储 | JSON文件（API Key加密存储） |
 
 ## 📦 快速开始
 
@@ -68,14 +79,13 @@ python cli.py config show
 
 # 设置阶跃星辰 API Key
 python cli.py config set --step-key sk-xxxxx
-
-# 设置AI模型配置
-python cli.py config set --llm-key sk-xxxxx --llm-url https://api.deepseek.com --llm-model deepseek-v4-flash
 ```
 
 **方式三：Web界面配置**
 
-启动服务后，点击右上角「设置」按钮进行配置。
+启动服务后，点击右上角「设置」按钮进行配置：
+- **ASR配置**：配置阶跃星辰API Key（语音识别专用）
+- **AI模型配置**：添加和管理AI模型（用于总结、优化等功能）
 
 **方式四：手动编辑 .env 文件**
 
@@ -84,7 +94,29 @@ cp .env.example .env
 # 编辑 .env 文件填入配置
 ```
 
-### 4. 启动Web服务
+### 4. 添加AI模型
+
+**Web界面添加（推荐）：**
+1. 点击右上角「设置」按钮
+2. 在「AI模型配置」区域点击「添加模型」
+3. 填写模型信息（名称、API Key、Base URL、模型名称）
+4. 点击「测试连接」验证配置
+5. 保存配置
+
+**CLI添加：**
+
+```bash
+# 添加模型
+python cli.py model add
+
+# 从环境变量导入已有配置
+python cli.py model import-env
+
+# 列出所有模型
+python cli.py model list
+```
+
+### 5. 启动Web服务
 
 ```bash
 python run.py
@@ -92,7 +124,7 @@ python run.py
 
 访问 http://localhost:8000 即可使用Web界面。
 
-### 5. 使用CLI工具
+### 6. 使用CLI工具
 
 ```bash
 # 转写音频文件
@@ -110,6 +142,8 @@ python cli.py serve
 
 ## 📖 CLI命令
 
+### 基础命令
+
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `config setup` | 交互式配置向导 | `python cli.py config setup` |
@@ -122,7 +156,22 @@ python cli.py serve
 | `export` | 导出记录 | `python cli.py export <record_id>` |
 | `serve` | 启动Web服务 | `python cli.py serve -p 8000` |
 
+### 模型管理命令（新功能）
+
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `model list` | 列出所有模型配置 | `python cli.py model list` |
+| `model add` | 添加模型配置 | `python cli.py model add` |
+| `model edit` | 编辑模型配置 | `python cli.py model edit <id> --api-key sk-xxx` |
+| `model delete` | 删除模型配置 | `python cli.py model delete <id>` |
+| `model use` | 切换当前使用的模型 | `python cli.py model use <id>` |
+| `model test` | 测试模型连接 | `python cli.py model test <id>` |
+| `model import-env` | 从环境变量导入 | `python cli.py model import-env` |
+| `model usage` | 查看用量统计 | `python cli.py model usage` |
+
 ## 🔌 API接口
+
+### 基础接口
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
@@ -140,6 +189,21 @@ python cli.py serve
 | `/api/config/cache/info` | GET | 获取缓存信息 |
 | `/api/config/cache/{type}` | DELETE | 清除缓存 |
 
+### 模型管理接口（新功能）
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/models` | GET | 获取所有模型列表 |
+| `/api/models` | POST | 创建模型配置 |
+| `/api/models/active` | GET | 获取当前激活模型 |
+| `/api/models/usage` | GET | 获取模型用量统计 |
+| `/api/models/{id}` | GET | 获取单个模型配置 |
+| `/api/models/{id}` | PUT | 更新模型配置 |
+| `/api/models/{id}` | DELETE | 删除模型配置 |
+| `/api/models/{id}/activate` | POST | 切换激活模型 |
+| `/api/models/test/{id}` | POST | 测试模型连接 |
+| `/api/models/import-env` | POST | 从环境变量导入 |
+
 ## 📁 目录结构
 
 ```
@@ -153,24 +217,33 @@ Class_summary/
 │   │   ├── summary.py            # AI总结
 │   │   ├── polish.py             # 口语优化
 │   │   ├── history.py            # 历史记录
-│   │   └── config.py             # 配置管理
+│   │   ├── config.py             # 配置管理
+│   │   └── models.py             # 模型管理（新）
 │   ├── services/                 # 业务逻辑
+│   │   ├── asr_service.py        # ASR服务
+│   │   ├── llm_service.py        # LLM服务（支持多模型）
+│   │   ├── storage_service.py    # 存储服务
+│   │   └── model_service.py      # 模型管理服务（新）
 │   └── models/                   # 数据模型
+│       └── schemas.py            # Pydantic模型定义
 ├── static/                       # 前端静态文件
 │   ├── index.html                # 主页面
 │   ├── css/style.css             # Material Design样式
 │   └── js/                       # JavaScript
 │       ├── api.js                # API调用
 │       ├── app.js                # 主逻辑
-│       └── recorder.js           # 录音模块
+│       └── recorder.js           # 录音模块（含波形图）
 ├── data/                         # 数据存储（已gitignore）
 │   ├── uploads/                  # 上传的音频
-│   └── history/                  # 历史记录
+│   ├── history/                  # 历史记录
+│   ├── models_config.json        # 模型配置（加密存储）
+│   └── model_usage.json          # 模型用量统计
 ├── cli.py                        # CLI入口
 ├── run.py                        # 启动脚本
 ├── requirements.txt              # 依赖
 ├── .env.example                  # 环境变量示例
-└── .gitignore                    # Git忽略配置
+├── .gitignore                    # Git忽略配置
+└── README.md                     # 本文件
 ```
 
 ## 🔑 API Key获取
@@ -180,6 +253,14 @@ Class_summary/
 | 阶跃星辰 | https://platform.stepfun.com |
 | DeepSeek | https://platform.deepseek.com |
 | 小米MiMo | https://platform.xiaomimimo.com |
+| OpenAI | https://platform.openai.com |
+| 月之暗面 | https://platform.moonshot.cn |
+
+## 🔒 安全说明
+
+- API Key使用**加密存储**，不会以明文形式保存在配置文件中
+- `.gitignore`已配置排除敏感配置文件（`data/models_config.json`、`data/model_usage.json`、`.env`）
+- 提交代码前请确认不会泄露API Key
 
 ## 🎨 界面预览
 
@@ -188,6 +269,12 @@ Class_summary/
 
 ### 夜间模式
 支持深色主题，保护眼睛，可在设置中切换
+
+### 模型切换
+顶部栏提供模型选择下拉框，可快速切换当前使用的AI模型
+
+### 实时波形图
+录音时显示实时音频波形和音量指示条
 
 ## 🤝 贡献
 

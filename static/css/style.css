@@ -96,7 +96,7 @@
 /* 青色主题 */
 [data-theme="teal"] {
     --md-primary: #00695C;
-    --md-md-on-primary: #FFFFFF;
+    --md-on-primary: #FFFFFF;
     --md-primary-container: #A7F3E1;
     --md-on-primary-container: #00201B;
     --md-secondary: #4A635D;
@@ -1065,4 +1065,49 @@ body {
 .dark-mode-desc {
     font-size: 12px;
     color: var(--md-on-surface-variant);
+}
+
+/* 波形图样式 */
+#waveform-canvas {
+    border-radius: 8px;
+    background: linear-gradient(180deg, 
+        rgba(0, 0, 0, 0.02) 0%, 
+        rgba(0, 0, 0, 0.05) 50%, 
+        rgba(0, 0, 0, 0.02) 100%);
+}
+
+@media (prefers-color-scheme: dark),
+[data-mode="dark"] {
+    #waveform-canvas {
+        background: linear-gradient(180deg, 
+            rgba(255, 255, 255, 0.02) 0%, 
+            rgba(255, 255, 255, 0.05) 50%, 
+            rgba(255, 255, 255, 0.02) 100%);
+    }
+}
+
+/* 录音按钮脉冲动画 */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes recording-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(179, 38, 30, 0.4);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(179, 38, 30, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(179, 38, 30, 0);
+    }
+}
+
+.recording-active {
+    animation: recording-pulse 1.5s infinite;
 }

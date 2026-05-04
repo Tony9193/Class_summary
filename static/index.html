@@ -6,7 +6,7 @@
     <title>课程录音转文字+AI智能总结</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/style.css?v=8">
+    <link rel="stylesheet" href="/static/css/style.css?v=9">
 </head>
 <body>
     <!-- Material Design 顶部应用栏 -->
@@ -15,10 +15,19 @@
             <span class="material-icons-outlined" style="vertical-align: middle; margin-right: 8px; color: var(--md-primary);">school</span>
             课程笔记助手
         </span>
-        <button onclick="openSettings()" class="md-btn md-btn-text md-btn-sm" title="设置">
-            <span class="material-icons-outlined">settings</span>
-            设置
-        </button>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <!-- 模型选择下拉框 -->
+            <div class="model-selector" style="display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons-outlined" style="font-size: 20px; color: var(--md-on-surface-variant);">smart_toy</span>
+                <select id="model-select" onchange="switchModel(this.value)" style="padding: 6px 12px; border: 1px solid var(--md-outline); border-radius: 8px; background: var(--md-surface); color: var(--md-on-surface); font-size: 13px; min-width: 150px; cursor: pointer;">
+                    <option value="">加载中...</option>
+                </select>
+            </div>
+            <button onclick="openSettings()" class="md-btn md-btn-text md-btn-sm" title="设置">
+                <span class="material-icons-outlined">settings</span>
+                设置
+            </button>
+        </div>
     </header>
 
     <!-- Material Design Tab栏 -->
@@ -47,12 +56,12 @@
                             上传音频文件
                         </h2>
                         <div id="drop-zone" style="padding: 32px; text-align: center; cursor: pointer;">
-                            <input type="file" id="audio-file" accept=".mp3,.wav,.ogg,.m4a,.flac" 
+                            <input type="file" id="audio-file" accept=".mp3,.wav,.ogg,.m4a,.flac,.aac,.wma,.webm" 
                                    style="display: none;" onchange="handleFileSelect(this)">
                             <label for="audio-file" style="cursor: pointer;">
                                 <span class="material-icons-outlined" style="font-size: 48px; color: var(--md-outline);">cloud_upload</span>
                                 <p style="margin: 8px 0 4px; color: var(--md-on-surface-variant);">点击或拖拽文件到此处</p>
-                                <p style="font-size: 12px; color: var(--md-outline);">支持 MP3, WAV, OGG, M4A, FLAC（最大500MB）</p>
+                                <p style="font-size: 12px; color: var(--md-outline);">支持 MP3, WAV, OGG, M4A, FLAC, AAC, WMA, WebM（最大500MB）</p>
                             </label>
                         </div>
                         <div id="file-info" style="display: none; margin-top: 16px; padding: 12px; background: var(--md-surface-2); border-radius: 8px;">
@@ -87,7 +96,11 @@
                             <span class="material-icons-outlined" style="vertical-align: middle; margin-right: 8px; color: var(--md-primary);">keyboard_voice</span>
                             实时录音
                         </h2>
-                        <div style="display: flex; justify-content: center; padding: 16px 0;">
+                        <!-- 波形图 -->
+                        <div id="waveform-container" style="margin: 16px 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--md-outline-variant); background: #f5f5f5; height: 80px;">
+                            <canvas id="waveform-canvas" style="display: block;"></canvas>
+                        </div>
+                        <div style="display: flex; justify-content: center; padding: 8px 0;">
                             <button onclick="toggleRecording()" id="btn-record" class="md-btn md-btn-danger" style="border-radius: 28px; padding: 16px 32px;">
                                 <span id="record-icon" style="font-size: 12px;">●</span>
                                 <span id="record-text">开始录音</span>
@@ -261,7 +274,7 @@
 
                 <!-- API配置部分 -->
                 <h3 style="font-size: 14px; font-weight: 500; color: var(--md-primary); margin: 16px 0 12px;">
-                    🔑 API配置
+                    🔑 ASR语音识别配置
                 </h3>
                 
                 <!-- 阶跃星辰 API Key -->
@@ -272,35 +285,44 @@
                     <p class="helper-text">用于ASR语音识别</p>
                 </div>
 
-                <!-- LLM API Key -->
-                <div class="md-input-field">
-                    <input type="password" id="llm-api-key" placeholder=" ">
-                    <label>AI模型 API Key</label>
-                    <span id="llm-key-status" class="status-badge"></span>
-                    <p class="helper-text">用于AI总结，支持DeepSeek/MiMo等</p>
-                </div>
-
-                <!-- LLM Base URL -->
-                <div class="md-input-field">
-                    <input type="text" id="llm-base-url" placeholder=" ">
-                    <label>AI模型 Base URL</label>
-                    <p class="helper-text">OpenAI兼容接口地址</p>
-                </div>
-
-                <!-- LLM Model -->
-                <div class="md-input-field">
-                    <input type="text" id="llm-model" placeholder=" ">
-                    <label>AI模型名称</label>
-                </div>
-
                 <!-- 测试按钮 -->
                 <div style="display: flex; gap: 12px; margin-bottom: 16px;">
                     <button onclick="testAsrConnection()" class="md-btn md-btn-outlined" style="flex: 1;">
-                        测试ASR
+                        测试ASR连接
                     </button>
-                    <button onclick="testLlmConnection()" class="md-btn md-btn-outlined" style="flex: 1;">
-                        测试AI
+                </div>
+
+                <div class="md-divider"></div>
+
+                <!-- AI模型配置部分 -->
+                <h3 style="font-size: 14px; font-weight: 500; color: var(--md-primary); margin: 16px 0 12px;">
+                    🤖 AI模型配置
+                </h3>
+                <p style="font-size: 12px; color: var(--md-on-surface-variant); margin-bottom: 12px;">
+                    配置用于AI总结、口语优化等功能的模型
+                </p>
+
+                <div id="model-list-container" style="margin-bottom: 16px;">
+                    <div style="text-align: center; padding: 16px; color: var(--md-outline);">
+                        加载中...
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button onclick="openAddModelDialog()" class="md-btn md-btn-outlined" style="flex: 1;">
+                        <span class="material-icons-outlined" style="font-size: 16px;">add</span>
+                        添加模型
                     </button>
+                    <button onclick="importModelFromEnv()" class="md-btn md-btn-outlined" style="flex: 1;">
+                        <span class="material-icons-outlined" style="font-size: 16px;">download</span>
+                        从环境导入
+                    </button>
+                </div>
+
+                <!-- 用量统计 -->
+                <div id="model-usage-container" style="display: none;">
+                    <p style="font-size: 12px; color: var(--md-on-surface-variant); margin-bottom: 8px;">用量统计</p>
+                    <div id="model-usage-stats" style="max-height: 150px; overflow-y: auto;"></div>
                 </div>
 
                 <div class="md-divider"></div>
@@ -387,8 +409,62 @@
         </div>
     </div>
 
-    <script src="/static/js/api.js?v=8"></script>
-    <script src="/static/js/recorder.js?v=8"></script>
-    <script src="/static/js/app.js?v=8"></script>
+    <!-- 模型编辑对话框 -->
+    <div id="model-edit-modal" class="md-dialog-overlay" style="display: none;">
+        <div class="md-dialog" style="max-width: 480px;">
+            <h2 class="md-dialog-title" id="model-edit-title">添加模型</h2>
+            <div class="md-dialog-content">
+                <input type="hidden" id="model-edit-id">
+
+                <div class="md-input-field">
+                    <input type="text" id="model-edit-name" placeholder=" ">
+                    <label>模型标识名称</label>
+                    <p class="helper-text">唯一标识，如 deepseek-chat, gpt-4</p>
+                </div>
+
+                <div class="md-input-field">
+                    <input type="text" id="model-edit-display-name" placeholder=" ">
+                    <label>显示名称</label>
+                    <p class="helper-text">在界面上显示的友好名称</p>
+                </div>
+
+                <div class="md-input-field">
+                    <input type="password" id="model-edit-api-key" placeholder=" ">
+                    <label>API Key</label>
+                </div>
+
+                <div class="md-input-field">
+                    <input type="text" id="model-edit-base-url" placeholder=" ">
+                    <label>Base URL</label>
+                    <p class="helper-text">OpenAI兼容接口地址</p>
+                </div>
+
+                <div class="md-input-field">
+                    <input type="text" id="model-edit-model" placeholder=" ">
+                    <label>模型名称</label>
+                    <p class="helper-text">实际调用的模型名称</p>
+                </div>
+
+                <div class="md-input-field">
+                    <input type="text" id="model-edit-description" placeholder=" ">
+                    <label>描述（可选）</label>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                    <input type="checkbox" id="model-edit-is-default">
+                    <label for="model-edit-is-default" style="font-size: 14px; cursor: pointer;">设为默认模型</label>
+                </div>
+            </div>
+            <div class="md-dialog-actions">
+                <button onclick="closeModelEdit()" class="md-btn md-btn-text">取消</button>
+                <button onclick="testModelEditConnection()" class="md-btn md-btn-outlined">测试连接</button>
+                <button onclick="saveModelEdit()" class="md-btn md-btn-filled">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/api.js?v=9"></script>
+    <script src="/static/js/recorder.js?v=9"></script>
+    <script src="/static/js/app.js?v=9"></script>
 </body>
 </html>

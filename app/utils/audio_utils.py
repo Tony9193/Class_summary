@@ -21,7 +21,10 @@ def get_audio_duration(file_path: str) -> float:
              "-of", "default=noprint_wrappers=1:nokey=1", file_path],
             capture_output=True, text=True
         )
-        return float(result.stdout.strip())
+        stdout = result.stdout.strip()
+        if stdout:
+            return float(stdout)
+        return 0.0
     except Exception:
         return 0.0
 
@@ -99,10 +102,11 @@ def _denoise_noisereduce(input_path: str, output_path: str) -> str:
     return output_path
 
 
-def split_audio(input_path: str, chunk_duration: int = 300) -> List[str]:
+def split_audio(input_path: str, chunk_duration: int = 300, reencode: bool = False) -> List[str]:
     """
     切割音频文件
     chunk_duration: 每段时长（秒），默认5分钟
+    reencode: 是否重新编码（True=转换为16kHz单声道，False=快速切割）
     返回切割后的文件路径列表
     """
     try:
@@ -128,19 +132,31 @@ def split_audio(input_path: str, chunk_duration: int = 300) -> List[str]:
         
         chunk_paths = []
         base_name = Path(input_path).stem
-        ext = Path(input_path).suffix
         
         for i in range(num_chunks):
             start_time = i * chunk_duration
-            chunk_path = str(UPLOADS_DIR / f"{base_name}_chunk{i:03d}{ext}")
+            chunk_path = str(UPLOADS_DIR / f"{base_name}_chunk{i:03d}.mp3")
             
-            cmd = [
-                "ffmpeg", "-y", "-i", input_path,
-                "-ss", str(start_time),
-                "-t", str(chunk_duration),
-                "-c", "copy",  # 快速切割，不重新编码
-                chunk_path
-            ]
+            if reencode:
+                # 重新编码为16kHz单声道（适合ASR）
+                cmd = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-ss", str(start_time),
+                    "-t", str(chunk_duration),
+                    "-ar", "16000",
+                    "-ac", "1",
+                    "-b:a", "64k",
+                    chunk_path
+                ]
+            else:
+                # 快速切割，不重新编码
+                cmd = [
+                    "ffmpeg", "-y", "-i", input_path,
+                    "-ss", str(start_time),
+                    "-t", str(chunk_duration),
+                    "-c", "copy",
+                    chunk_path
+                ]
             
             result = subprocess.run(cmd, capture_output=True)
             if result.returncode == 0 and os.path.exists(chunk_path) and os.path.getsize(chunk_path) > 0:

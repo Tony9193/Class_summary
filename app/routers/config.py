@@ -112,6 +112,32 @@ async def test_llm_connection():
         return {"success": False, "message": f"连接失败: {str(e)}"}
 
 
+@router.post("/test/llm")
+async def test_llm_connection():
+    """测试LLM连接"""
+    from app.config import get_llm_api_key, get_llm_base_url, get_llm_model
+    from openai import AsyncOpenAI
+    
+    api_key = get_llm_api_key()
+    base_url = get_llm_base_url()
+    model = get_llm_model()
+    
+    if not api_key:
+        return {"success": False, "message": "未配置LLM API Key"}
+    
+    try:
+        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        # 尝试发送一个简单请求
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Hello"}],
+            max_tokens=10
+        )
+        return {"success": True, "message": f"连接成功，模型: {model}"}
+    except Exception as e:
+        return {"success": False, "message": f"连接失败: {str(e)}"}
+
+
 def get_dir_size(dir_path: str) -> int:
     """获取目录大小（字节）"""
     total_size = 0

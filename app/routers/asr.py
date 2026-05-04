@@ -1,13 +1,15 @@
 """ASR转写路由"""
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import json
+import logging
 
 from app.services.asr_service import asr_service
 from app.services.storage_service import storage_service
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/asr", tags=["ASR"])
 
 
@@ -34,7 +36,7 @@ async def transcribe_audio(request: TranscribeRequest):
             if len(file_paths) > 1:
                 if i > 0:
                     full_text += "\n\n"
-                full_text += f"[第{i+1}部分]\n{chunk_text}"
+                full_text += chunk_text
             else:
                 full_text = chunk_text
         
@@ -52,9 +54,16 @@ async def transcribe_audio(request: TranscribeRequest):
             "chunks_count": len(file_paths)
         }
     except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        return JSONResponse(
+            status_code=404,
+            content={"success": False, "message": str(e)}
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"转写失败: {str(e)}")
+        logger.error(f"转写失败: {e}", exc_info=True)
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "message": f"转写失败: {str(e)}"}
+        )
 
 
 @router.post("/transcribe/stream")
