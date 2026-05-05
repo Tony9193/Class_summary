@@ -2,10 +2,10 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-green.svg)](https://fastapi.tiangolo.com/)
+[![D3.js](https://img.shields.io/badge/D3.js-v7-orange.svg)](https://d3js.org/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 > 将课程录音快速转化为结构清晰的文字笔记和知识要点，大幅提升学习效率。
-<img width="2555" height="1232" alt="图片" src="https://github.com/user-attachments/assets/fa2530bb-f96a-429a-85fd-fde9991c8fe6" />
 
 ## ✨ 功能特性
 
@@ -15,27 +15,38 @@
 - ✨ **口语优化** - AI自动去除语气词，将口语化内容转为规范书面语
 - 🔊 **音频降噪** - 支持课堂录音降噪处理，提升转写准确率
 - 📝 **历史记录** - 转写记录管理、搜索、导出
-<img width="1108" height="944" alt="图片" src="https://github.com/user-attachments/assets/b0e50085-85e2-43d5-9736-eea655d41604" />
 
-### 模型管理（新功能）
+### 批量处理
+- 📦 **多文件上传** - 支持同时选择多个音频文件批量上传（最多20个）
+- 🔄 **批量转写** - 自动依次转写所有文件，实时显示进度
+- 🤖 **自动总结** - 可选开启转写完成后自动生成AI总结
+- 📊 **任务进度** - 可视化展示每个文件的处理状态（等待/转写/总结/完成/失败）
+- 🔍 **快速跳转** - 处理完成后可直接点击查看单条记录详情
+
+### 思维导图 + AI知识点解析
+- 🧠 **AI生成思维导图** - 基于课程转写内容，AI自动提取知识点生成树形思维导图
+- 🔍 **交互操作** - 支持缩放、拖拽、展开/折叠节点
+- 🔄 **视图切换** - 在列表视图和思维导图视图之间自由切换
+- 🎯 **层级结构** - 自动组织为清晰的知识层级（最多3-4层）
+- 💡 **节点解析** - 点击节点上的 `?` 按钮，AI对该知识点进行深入解析
+- 💬 **对话式追问** - 解析弹窗内支持多轮对话，可继续追问相关问题
+
+### 模型管理
 - 🤖 **多模型配置** - 支持配置多个AI模型，灵活切换
 - 🔄 **模型切换** - 顶部栏下拉框快速切换当前使用的模型
 - 📊 **用量统计** - 记录每个模型的调用次数和Token消耗
 - 🔒 **安全存储** - API Key加密存储，防止意外泄露
 - 🧪 **连接测试** - 一键测试模型配置是否正确
-<img width="760" height="639" alt="图片" src="https://github.com/user-attachments/assets/4cdef036-4908-4589-94d1-8874423b2822" />
 
-### 录音功能（新功能）
+### 录音功能
 - 📈 **实时波形图** - 录音时显示实时音频波形和音量指示
 - ⏱️ **录音计时** - 实时显示录音时长
-<img width="889" height="463" alt="图片" src="https://github.com/user-attachments/assets/d90c638a-6035-4742-bc38-ca8f884a9396" />
 
 ### 界面特色
 - 🎨 **Material Design 3** - 现代化 Material Design 风格界面
 - 🌙 **夜间模式** - 护眼深色主题，保护视力
 - 🎯 **多主题色** - 7种主题颜色可选（紫/蓝/绿/橙/红/青/粉）
 - 💾 **缓存管理** - 可视化管理音频文件和历史记录缓存
-<img width="736" height="774" alt="图片" src="https://github.com/user-attachments/assets/fa454884-c5c4-40e3-8258-cd4e66a9c0ba" />
 
 ### 其他特性
 - 💻 **双模式使用** - 支持CLI命令行和Web UI两种使用方式
@@ -48,8 +59,9 @@
 |------|------|
 | 后端框架 | Python + FastAPI |
 | ASR语音识别 | 阶跃星辰 StepAudio 2.5 ASR |
-| AI总结 | OpenAI兼容接口（DeepSeek、小米MiMo等） |
+| AI总结/解析 | OpenAI兼容接口（DeepSeek、小米MiMo等） |
 | 前端 | HTML + CSS + JavaScript |
+| 思维导图 | D3.js v7 |
 | UI风格 | Material Design 3 |
 | 数据存储 | JSON文件（API Key加密存储） |
 
@@ -161,7 +173,7 @@ python cli.py serve
 | `export` | 导出记录 | `python cli.py export <record_id>` |
 | `serve` | 启动Web服务 | `python cli.py serve -p 8000` |
 
-### 模型管理命令（新功能）
+### 模型管理命令
 
 | 命令 | 说明 | 示例 |
 |------|------|------|
@@ -194,7 +206,7 @@ python cli.py serve
 | `/api/config/cache/info` | GET | 获取缓存信息 |
 | `/api/config/cache/{type}` | DELETE | 清除缓存 |
 
-### 模型管理接口（新功能）
+### 模型管理接口
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
@@ -209,6 +221,25 @@ python cli.py serve
 | `/api/models/test/{id}` | POST | 测试模型连接 |
 | `/api/models/import-env` | POST | 从环境变量导入 |
 
+### 批量处理接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/batch/upload` | POST | 批量上传音频文件 |
+| `/api/batch/start` | POST | 启动批量处理任务 |
+| `/api/batch/status/{task_id}` | GET | 获取批量任务状态 |
+| `/api/batch/list` | GET | 获取所有批量任务 |
+
+### 思维导图 & 知识点解析接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/summary/mindmap` | POST | 生成思维导图数据 |
+| `/api/summary/mindmap/stream` | POST | 流式生成思维导图 |
+| `/api/summary/explain` | POST | 知识点AI解析 |
+| `/api/summary/explain/stream` | POST | 流式知识点解析 |
+| `/api/summary/explain/followup` | POST | 知识点多轮追问 |
+
 ## 📁 目录结构
 
 ```
@@ -219,25 +250,30 @@ Class_summary/
 │   ├── routers/                  # API路由
 │   │   ├── audio.py              # 音频上传
 │   │   ├── asr.py                # ASR转写
-│   │   ├── summary.py            # AI总结
+│   │   ├── summary.py            # AI总结 + 思维导图 + 知识点解析
 │   │   ├── polish.py             # 口语优化
 │   │   ├── history.py            # 历史记录
 │   │   ├── config.py             # 配置管理
-│   │   └── models.py             # 模型管理（新）
+│   │   ├── models.py             # 模型管理
+│   │   └── batch.py              # 批量处理
 │   ├── services/                 # 业务逻辑
 │   │   ├── asr_service.py        # ASR服务
-│   │   ├── llm_service.py        # LLM服务（支持多模型）
+│   │   ├── llm_service.py        # LLM服务（总结/优化/思维导图/知识点解析）
 │   │   ├── storage_service.py    # 存储服务
-│   │   └── model_service.py      # 模型管理服务（新）
-│   └── models/                   # 数据模型
-│       └── schemas.py            # Pydantic模型定义
+│   │   ├── model_service.py      # 模型管理服务
+│   │   └── batch_service.py      # 批量处理服务
+│   ├── models/                   # 数据模型
+│   │   └── schemas.py            # Pydantic模型定义
+│   └── utils/
+│       └── audio_utils.py        # 音频处理工具
 ├── static/                       # 前端静态文件
 │   ├── index.html                # 主页面
 │   ├── css/style.css             # Material Design样式
 │   └── js/                       # JavaScript
 │       ├── api.js                # API调用
 │       ├── app.js                # 主逻辑
-│       └── recorder.js           # 录音模块（含波形图）
+│       ├── recorder.js           # 录音模块（含波形图）
+│       └── mindmap.js            # 思维导图渲染（D3.js）
 ├── data/                         # 数据存储（已gitignore）
 │   ├── uploads/                  # 上传的音频
 │   ├── history/                  # 历史记录
@@ -267,20 +303,6 @@ Class_summary/
 - `.gitignore`已配置排除敏感配置文件（`data/models_config.json`、`data/model_usage.json`、`.env`）
 - 提交代码前请确认不会泄露API Key
 
-## 🎨 界面预览
-
-### 主题颜色
-支持 7 种主题颜色：紫色（默认）、蓝色、绿色、橙色、红色、青色、粉色
-
-### 夜间模式
-支持深色主题，保护眼睛，可在设置中切换
-
-### 模型切换
-顶部栏提供模型选择下拉框，可快速切换当前使用的AI模型
-
-### 实时波形图
-录音时显示实时音频波形和音量指示条
-
 ## 🤝 贡献
 
 欢迎提交 Issue 和 Pull Request！
@@ -300,6 +322,7 @@ Class_summary/
 - [FastAPI](https://fastapi.tiangolo.com/)
 - [阶跃星辰](https://platform.stepfun.com)
 - [Material Design 3](https://m3.material.io/)
+- [D3.js](https://d3js.org/)
 
 ### 特别感谢
 

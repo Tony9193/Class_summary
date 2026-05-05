@@ -242,6 +242,8 @@ body {
     font-size: 12px;
     min-height: 32px;
     border-radius: 16px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* Material Design 卡片 */
@@ -764,6 +766,7 @@ body {
     border: 1px solid var(--md-outline);
     border-radius: 20px;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .md-segmented-button-item {
@@ -776,6 +779,7 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
+    white-space: nowrap;
 }
 
 .md-segmented-button-item:not(:last-child) {
@@ -1110,4 +1114,358 @@ body {
 
 .recording-active {
     animation: recording-pulse 1.5s infinite;
+}
+
+/* ========== 批量处理样式 ========== */
+
+/* 批量拖拽区域 */
+#batch-drop-zone {
+    border: 2px dashed var(--md-outline-variant);
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+#batch-drop-zone.dragover {
+    border-color: var(--md-primary);
+    background-color: var(--md-primary-container);
+}
+
+/* 批量文件项 */
+.batch-file-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--md-surface);
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 8px;
+    margin-bottom: 6px;
+    transition: all 0.2s;
+}
+
+.batch-file-item:hover {
+    background: var(--md-surface-2);
+}
+
+.batch-file-item .file-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    font-size: 16px;
+    margin-right: 10px;
+    flex-shrink: 0;
+}
+
+.batch-file-item .file-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.batch-file-item .file-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.batch-file-item .file-size {
+    font-size: 11px;
+    color: var(--md-on-surface-variant);
+    margin-top: 1px;
+}
+
+.batch-file-item .file-remove {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: var(--md-outline);
+    cursor: pointer;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.batch-file-item .file-remove:hover {
+    background: var(--md-error-container);
+    color: var(--md-error);
+}
+
+/* 批量任务项 */
+.batch-task-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border: 1px solid var(--md-outline-variant);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+}
+
+.batch-task-item.task-done {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.05);
+}
+
+.batch-task-item.task-error {
+    border-color: var(--md-error);
+    background: rgba(179, 38, 30, 0.05);
+}
+
+.batch-task-item.task-processing {
+    border-color: var(--md-primary);
+    background: var(--md-primary-container);
+}
+
+.batch-task-item .task-icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    margin-right: 12px;
+    flex-shrink: 0;
+    font-size: 18px;
+}
+
+.batch-task-item .task-icon.pending { background: var(--md-surface-variant); color: var(--md-outline); }
+.batch-task-item .task-icon.transcribing { background: var(--md-primary-container); color: var(--md-primary); }
+.batch-task-item .task-icon.summarizing { background: var(--md-tertiary-container); color: var(--md-tertiary); }
+.batch-task-item .task-icon.done { background: #E8F5E9; color: #2E7D32; }
+.batch-task-item .task-icon.error { background: var(--md-error-container); color: var(--md-error); }
+
+.batch-task-item .task-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.batch-task-item .task-filename {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--md-on-surface);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.batch-task-item .task-status {
+    font-size: 12px;
+    color: var(--md-on-surface-variant);
+    margin-top: 2px;
+}
+
+.batch-task-item .task-actions {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+/* ========== 思维导图样式 ========== */
+
+/* 思维导图节点 */
+.mindmap-node rect {
+    transition: all 0.2s;
+}
+
+.mindmap-node text {
+    pointer-events: none;
+    user-select: none;
+}
+
+.mindmap-link {
+    transition: stroke-opacity 0.2s;
+}
+
+/* 思维导图工具栏 */
+#mindmap-toolbar .md-btn {
+    background: var(--md-surface);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+    min-height: 28px;
+    padding: 4px 8px;
+}
+
+#mindmap-toolbar .md-btn:hover {
+    background: var(--md-surface-2);
+}
+
+/* 思维导图解析按钮 */
+.explain-btn {
+    transition: all 0.15s ease;
+}
+
+.explain-btn:hover {
+    fill: #6750A4;
+    stroke-width: 2;
+}
+
+/* 解析弹窗内容区Markdown样式 */
+#explain-result h1,
+#explain-result h2,
+#explain-result h3 {
+    font-weight: 500;
+    margin-top: 16px;
+    margin-bottom: 8px;
+    color: var(--md-on-surface);
+}
+
+#explain-result h2 {
+    font-size: 18px;
+    border-bottom: 1px solid var(--md-outline-variant);
+    padding-bottom: 8px;
+}
+
+#explain-result h3 {
+    font-size: 15px;
+}
+
+#explain-result ul,
+#explain-result ol {
+    padding-left: 24px;
+    margin: 8px 0;
+}
+
+#explain-result li {
+    margin: 4px 0;
+}
+
+#explain-result p {
+    margin: 8px 0;
+}
+
+/* ========== 知识点解析对话框样式 ========== */
+
+/* 消息行 */
+.explain-msg {
+    display: flex;
+    margin-bottom: 16px;
+    gap: 10px;
+}
+
+.explain-msg-user {
+    justify-content: flex-end;
+}
+
+.explain-msg-ai {
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+/* AI头像 */
+.explain-msg-ai .msg-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--md-primary-container);
+    color: var(--md-on-primary-container);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.explain-msg-ai .msg-avatar .material-icons-outlined {
+    font-size: 18px;
+}
+
+/* 气泡 */
+.msg-bubble {
+    max-width: 85%;
+    padding: 10px 16px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.6;
+    word-break: break-word;
+}
+
+.msg-bubble-user {
+    background: var(--md-primary);
+    color: var(--md-on-primary);
+    border-bottom-right-radius: 4px;
+}
+
+.msg-bubble-ai {
+    background: var(--md-surface-2);
+    color: var(--md-on-surface);
+    border-bottom-left-radius: 4px;
+}
+
+/* 气泡内Markdown样式 */
+.msg-bubble-ai h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 12px 0 6px;
+    color: var(--md-on-surface);
+}
+
+.msg-bubble-ai h2:first-child {
+    margin-top: 0;
+}
+
+.msg-bubble-ai h3 {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 10px 0 4px;
+}
+
+.msg-bubble-ai ul,
+.msg-bubble-ai ol {
+    padding-left: 20px;
+    margin: 6px 0;
+}
+
+.msg-bubble-ai li {
+    margin: 3px 0;
+}
+
+.msg-bubble-ai p {
+    margin: 6px 0;
+}
+
+.msg-bubble-ai p:first-child {
+    margin-top: 0;
+}
+
+.msg-bubble-ai p:last-child {
+    margin-bottom: 0;
+}
+
+.msg-bubble-ai strong {
+    font-weight: 600;
+}
+
+.msg-bubble-ai code {
+    background: var(--md-surface-variant);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 13px;
+}
+
+/* 打字光标 */
+.typing-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 16px;
+    background: var(--md-primary);
+    margin-left: 2px;
+    vertical-align: middle;
+    animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}
+
+/* 输入框自适应高度 */
+#explain-input {
+    field-sizing: content;
 }

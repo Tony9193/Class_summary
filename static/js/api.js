@@ -498,5 +498,174 @@ const API = {
             throw new Error('获取用量统计失败');
         }
         return await response.json();
+    },
+
+    // ========== 批量处理 ==========
+
+    /**
+     * 批量上传音频文件
+     */
+    async batchUpload(files, enableDenoise = false, denoiseMethod = 'afftdn') {
+        const formData = new FormData();
+        for (const file of files) {
+            formData.append('files', file);
+        }
+        formData.append('enable_denoise', enableDenoise);
+        formData.append('denoise_method', denoiseMethod);
+
+        const response = await fetch('/api/batch/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '批量上传失败');
+        }
+
+        return await response.json();
+    },
+
+    /**
+     * 启动批量处理任务
+     */
+    async startBatch(files, autoSummary = false) {
+        const response = await fetch('/api/batch/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: files, auto_summary: autoSummary })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '启动批量任务失败');
+        }
+
+        return await response.json();
+    },
+
+    /**
+     * 获取批量任务状态
+     */
+    async getBatchStatus(taskId) {
+        const response = await fetch(`/api/batch/status/${taskId}`);
+        if (!response.ok) {
+            throw new Error('获取任务状态失败');
+        }
+        return await response.json();
+    },
+
+    /**
+     * 获取所有批量任务
+     */
+    async getBatchList() {
+        const response = await fetch('/api/batch/list');
+        if (!response.ok) {
+            throw new Error('获取任务列表失败');
+        }
+        return await response.json();
+    },
+
+    // ========== 思维导图 ==========
+
+    /**
+     * 生成思维导图
+     */
+    async generateMindmap(text, recordId = null, modelId = null) {
+        const body = { text };
+        if (recordId) body.record_id = recordId;
+        if (modelId) body.model_id = modelId;
+
+        const response = await fetch('/api/summary/mindmap', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '生成思维导图失败');
+        }
+
+        return await response.json();
+    },
+
+    /**
+     * 流式生成思维导图
+     */
+    generateMindmapStream(text, recordId, onChunk, onDone, onError, modelId = null) {
+        const body = { text };
+        if (recordId) body.record_id = recordId;
+        if (modelId) body.model_id = modelId;
+
+        fetch('/api/summary/mindmap/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            this._parseSSEStream(response, { onChunk, onDone, onError });
+        }).catch(onError);
+    },
+
+    /**
+     * 知识点AI解析
+     */
+    async explainKeyword(keyword, context, modelId = null) {
+        const body = { keyword, context };
+        if (modelId) body.model_id = modelId;
+
+        const response = await fetch('/api/summary/explain', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || '知识点解析失败');
+        }
+
+        return await response.json();
+    },
+
+    /**
+     * 流式知识点AI解析
+     */
+    explainKeywordStream(keyword, context, onChunk, onDone, onError, modelId = null) {
+        const body = { keyword, context };
+        if (modelId) body.model_id = modelId;
+
+        fetch('/api/summary/explain/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            this._parseSSEStream(response, { onChunk, onDone, onError });
+        }).catch(onError);
+    },
+
+    /**
+     * 知识点追问（多轮对话）
+     */
+    explainFollowupStream(keyword, context, history, question, onChunk, onDone, onError, modelId = null) {
+        const body = { keyword, context, history, question };
+        if (modelId) body.model_id = modelId;
+
+        fetch('/api/summary/explain/followup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        }).then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            this._parseSSEStream(response, { onChunk, onDone, onError });
+        }).catch(onError);
     }
 };

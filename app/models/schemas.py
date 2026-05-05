@@ -1,15 +1,96 @@
 """数据模型定义"""
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 
 class SummaryRequest(BaseModel):
     """总结请求"""
     model_config = {'protected_namespaces': ()}
-    
+
     text: str
     task_id: Optional[str] = None
+    model_id: Optional[str] = None
+
+
+class BatchUploadResponse(BaseModel):
+    """批量上传响应"""
+    success: bool
+    files: list[dict]
+    total: int
+
+
+class BatchTaskItem(BaseModel):
+    """批量任务中的单个文件"""
+    id: str
+    filename: str
+    file_path: str
+    chunks: Optional[List[str]] = None
+    status: str = "pending"  # pending / uploading / transcribing / summarizing / done / error
+    transcription: Optional[str] = None
+    summary: Optional[str] = None
+    error: Optional[str] = None
+    record_id: Optional[str] = None
+    progress_message: Optional[str] = None
+
+
+class BatchTask(BaseModel):
+    """批量任务"""
+    id: str
+    items: List[BatchTaskItem]
+    status: str = "pending"  # pending / processing / done / partial_error
+    created_at: str
+    completed_at: Optional[str] = None
+    total: int
+    completed: int = 0
+    failed: int = 0
+
+
+class BatchTaskResponse(BaseModel):
+    """批量任务响应"""
+    success: bool
+    task: BatchTask
+
+
+class MindmapNode(BaseModel):
+    """思维导图节点"""
+    title: str
+    children: Optional[List['MindmapNode']] = None
+
+
+class MindmapRequest(BaseModel):
+    """思维导图请求"""
+    model_config = {'protected_namespaces': ()}
+
+    text: str
+    record_id: Optional[str] = None
+    model_id: Optional[str] = None
+
+
+class MindmapResponse(BaseModel):
+    """思维导图响应"""
+    success: bool
+    mindmap: MindmapNode
+    record_id: Optional[str] = None
+
+
+class ExplainRequest(BaseModel):
+    """知识点解析请求"""
+    model_config = {'protected_namespaces': ()}
+
+    keyword: str
+    context: str
+    model_id: Optional[str] = None
+
+
+class ExplainFollowupRequest(BaseModel):
+    """知识点追问请求"""
+    model_config = {'protected_namespaces': ()}
+
+    keyword: str
+    context: str
+    history: list[dict] = []  # [{"role": "user"/"assistant", "content": "..."}]
+    question: str
     model_id: Optional[str] = None
 
 

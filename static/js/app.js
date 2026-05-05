@@ -13,6 +13,15 @@ let isShowingPolished = false;  // 当前是否显示优化后的文本
 let pendingDeleteId = null;
 let pendingCacheType = null;
 
+// 批量处理状态
+let batchFiles = [];  // 已选择的批量文件列表
+let currentBatchTaskId = null;
+let batchPollTimer = null;
+
+// 思维导图状态
+let currentMindmapData = null;
+let isShowingMindmap = false;
+
 // 主题和外观设置
 let currentTheme = localStorage.getItem('theme') || 'purple';
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
@@ -43,6 +52,11 @@ function switchTab(tabName) {
     // 如果切换到历史记录，加载数据
     if (tabName === 'history') {
         loadHistory();
+    }
+    
+    // 如果切换到批量处理，初始化拖拽
+    if (tabName === 'batch') {
+        initBatchDropZone();
     }
 }
 
@@ -143,11 +157,21 @@ async function startTranscribe() {
                 
                 // 启用口语优化按钮
                 document.getElementById('btn-polish').disabled = false;
+
+                // 显示思维导图按钮
+                document.getElementById('btn-mindmap').style.display = 'inline-flex';
                 
                 // 重置切换按钮状态
                 isShowingPolished = false;
                 currentPolishedText = '';
                 document.getElementById('view-toggle').style.display = 'none';
+
+                // 重置思维导图状态
+                currentMindmapData = null;
+                isShowingMindmap = false;
+                document.getElementById('summary-view-toggle').style.display = 'none';
+                document.getElementById('summary-result').style.display = 'block';
+                document.getElementById('mindmap-container').style.display = 'none';
                 
                 hideLoading();
                 const chunkInfo = data.chunks_count > 1 ? `（共${data.chunks_count}段）` : '';
@@ -244,6 +268,528 @@ function renderMarkdown(text) {
 }
 
 /**
+ * 生成思维导图
+ */
+async function generateMindmap() {
+    const textToUse = isShowingPolished ? currentPolishedText : currentTranscription;
+    if (!textToUse) {
+        showToast('请先完成转写', 'error');
+        return;
+    }
+
+    const modelId = document.getElementById('model-select')?.value || null;
+
+    showLoading('正在生成思维导图...');
+
+    try {
+        const result = await API.generateMindmap(textToUse, currentTaskId, modelId);
+        if (result.success) {
+            currentMindmapData = result.mindmap;
+            showToast('思维导图生成完成！', 'success');
+
+            // 显示思维导图视图切换按钮
+            document.getElementById('summary-view-toggle').style.display = 'inline-flex';
+
+            // 切换到思维导图视图
+            toggleSummaryView('mindmap');
+        }
+    } catch (error) {
+        showToast('生成思维导图失败: ' + error.message, 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
+/**
+ * 切换总结视图（列表/思维导图）
+ */
+function toggleSummaryView(view) {
+    const listBtn = document.getElementById('btn-view-list');
+    const mindmapBtn = document.getElementById('btn-view-mindmap');
+    const summaryResult = document.getElementById('summary-result');
+    const mindmapContainer = document.getElementById('mindmap-container');
+
+    if (view === 'list') {
+        summaryResult.style.display = 'block';
+        mindmapContainer.style.display = 'none';
+        listBtn.classList.add('active');
+        mindmapBtn.classList.remove('active');
+        isShowingMindmap = false;
+    } else {
+        summaryResult.style.display = 'none';
+        mindmapContainer.style.display = 'block';
+        listBtn.classList.remove('active');
+        mindmapBtn.classList.add('active');
+        isShowingMindmap = true;
+
+        // 渲染思维导图
+        if (currentMindmapData) {
+            Mindmap.init('mindmap-canvas');
+            Mindmap._currentData = currentMindmapData;
+            Mindmap.render(currentMindmapData);
+        }
+    }
+}
+
+// ========== 知识点解析 ==========
+
+// 解析对话状态
+let explainKeyword = '';
+let explainContext = '';
+let explainHistory = [];  // [{role, content}]
+let explainBusy = false;
+
+/**
+ * 打开知识点解析弹窗
+ */
+function openExplainDialog(keyword) {
+    explainKeyword = keyword;
+    explainContext = isShowingPolished ? currentPolishedText : currentTranscription;
+    explainHistory = [];
+    explainBusy = false;
+
+    document.getElementById('explain-keyword').textContent = keyword;
+    document.getElementById('explain-messages').innerHTML = '';
+    document.getElementById('explain-input').value = '';
+    document.getElementById('explain-modal').style.display = 'flex';
+
+    // 自动开始首次解析
+    startExplain();
+}
+
+/**
+ * 关闭知识点解析弹窗
+ */
+function closeExplainDialog() {
+    document.getElementById('explain-modal').style.display = 'none';
+}
+
+/**
+ * 开始首次知识点解析
+ */
+async function startExplain() {
+    if (!explainContext) {
+        appendExplainMessage('assistant', '没有可用的课程文本，请先完成转写。');
+        return;
+    }
+
+    const modelId = document.getElementById('model-select')?.value || null;
+
+    // 添加用户消息
+    appendExplainMessage('user', `请帮我详细解析「${explainKeyword}」这个知识点`);
+
+    // 添加AI消息占位
+    const aiMsgEl = appendExplainMessage('assistant', '', true);
+    const contentEl = aiMsgEl.querySelector('.msg-content');
+    explainBusy = true;
+
+    let fullText = '';
+
+    try {
+        await API.explainKeywordStream(
+            explainKeyword,
+            explainContext,
+            (chunk) => {
+                fullText += chunk;
+                contentEl.innerHTML = renderMarkdown(fullText);
+                scrollExplainToBottom();
+            },
+            () => {
+                explainBusy = false;
+                contentEl.innerHTML = renderMarkdown(fullText);
+                explainHistory.push({ role: 'user', content: `请帮我详细解析「${explainKeyword}」这个知识点` });
+                explainHistory.push({ role: 'assistant', content: fullText });
+                hideExplainTyping();
+                scrollExplainToBottom();
+            },
+            (error) => {
+                explainBusy = false;
+                contentEl.innerHTML = `<p style="color: var(--md-error);">解析失败: ${error.message}</p>`;
+                hideExplainTyping();
+            },
+            modelId
+        );
+    } catch (error) {
+        explainBusy = false;
+        contentEl.innerHTML = `<p style="color: var(--md-error);">解析失败: ${error.message}</p>`;
+        hideExplainTyping();
+    }
+}
+
+/**
+ * 发送追问
+ */
+async function sendExplainFollowup() {
+    if (explainBusy) return;
+
+    const input = document.getElementById('explain-input');
+    const question = input.value.trim();
+    if (!question) return;
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    const modelId = document.getElementById('model-select')?.value || null;
+
+    // 添加用户消息
+    appendExplainMessage('user', question);
+
+    // 添加AI消息占位
+    const aiMsgEl = appendExplainMessage('assistant', '', true);
+    const contentEl = aiMsgEl.querySelector('.msg-content');
+    explainBusy = true;
+
+    let fullText = '';
+
+    try {
+        await API.explainFollowupStream(
+            explainKeyword,
+            explainContext,
+            explainHistory,
+            question,
+            (chunk) => {
+                fullText += chunk;
+                contentEl.innerHTML = renderMarkdown(fullText);
+                scrollExplainToBottom();
+            },
+            () => {
+                explainBusy = false;
+                contentEl.innerHTML = renderMarkdown(fullText);
+                explainHistory.push({ role: 'user', content: question });
+                explainHistory.push({ role: 'assistant', content: fullText });
+                hideExplainTyping();
+                scrollExplainToBottom();
+            },
+            (error) => {
+                explainBusy = false;
+                contentEl.innerHTML = `<p style="color: var(--md-error);">回答失败: ${error.message}</p>`;
+                hideExplainTyping();
+            },
+            modelId
+        );
+    } catch (error) {
+        explainBusy = false;
+        contentEl.innerHTML = `<p style="color: var(--md-error);">回答失败: ${error.message}</p>`;
+        hideExplainTyping();
+    }
+}
+
+/**
+ * 追加消息到对话区
+ * @param {string} role - 'user' 或 'assistant'
+ * @param {string} content - 消息内容
+ * @param {boolean} isStreaming - 是否为流式消息（显示光标）
+ */
+function appendExplainMessage(role, content, isStreaming = false) {
+    const container = document.getElementById('explain-messages');
+
+    const msgEl = document.createElement('div');
+    msgEl.className = `explain-msg explain-msg-${role}`;
+
+    if (role === 'user') {
+        msgEl.innerHTML = `
+            <div class="msg-bubble msg-bubble-user">
+                <div class="msg-content">${escapeHtml(content)}</div>
+            </div>
+        `;
+    } else {
+        msgEl.innerHTML = `
+            <div class="msg-avatar">
+                <span class="material-icons-outlined">smart_toy</span>
+            </div>
+            <div class="msg-bubble msg-bubble-ai">
+                <div class="msg-content">${isStreaming ? '<span class="typing-cursor"></span>' : renderMarkdown(content)}</div>
+            </div>
+        `;
+    }
+
+    container.appendChild(msgEl);
+    scrollExplainToBottom();
+
+    return msgEl;
+}
+
+/**
+ * 隐藏输入中的光标
+ */
+function hideExplainTyping() {
+    const cursors = document.querySelectorAll('#explain-messages .typing-cursor');
+    cursors.forEach(c => c.remove());
+}
+
+/**
+ * 滚动到底部
+ */
+function scrollExplainToBottom() {
+    const container = document.getElementById('explain-messages');
+    container.scrollTop = container.scrollHeight;
+}
+
+// ========== 批量处理功能 ==========
+
+/**
+ * 初始化批量拖拽区域
+ */
+function initBatchDropZone() {
+    const dropZone = document.getElementById('batch-drop-zone');
+    if (!dropZone || dropZone._initialized) return;
+    dropZone._initialized = true;
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+        dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+
+        const files = Array.from(e.dataTransfer.files);
+        if (files.length > 0) {
+            addBatchFiles(files);
+        }
+    });
+}
+
+/**
+ * 处理批量文件选择
+ */
+function handleBatchFileSelect(input) {
+    const files = Array.from(input.files);
+    if (files.length > 0) {
+        addBatchFiles(files);
+    }
+    input.value = '';  // 重置input以便重复选择
+}
+
+/**
+ * 添加文件到批量列表
+ */
+function addBatchFiles(files) {
+    for (const file of files) {
+        // 检查是否已存在
+        if (batchFiles.some(f => f.name === file.name && f.size === file.size)) {
+            continue;
+        }
+        batchFiles.push(file);
+    }
+
+    // 限制最多20个
+    if (batchFiles.length > 20) {
+        batchFiles = batchFiles.slice(0, 20);
+        showToast('最多支持20个文件，已截取前20个', 'warning');
+    }
+
+    renderBatchFileList();
+    document.getElementById('btn-batch-start').disabled = batchFiles.length === 0;
+}
+
+/**
+ * 从批量列表移除文件
+ */
+function removeBatchFile(index) {
+    batchFiles.splice(index, 1);
+    renderBatchFileList();
+    document.getElementById('btn-batch-start').disabled = batchFiles.length === 0;
+}
+
+/**
+ * 渲染批量文件列表
+ */
+function renderBatchFileList() {
+    const container = document.getElementById('batch-files-container');
+    const fileList = document.getElementById('batch-file-list');
+
+    if (batchFiles.length === 0) {
+        fileList.style.display = 'none';
+        return;
+    }
+
+    fileList.style.display = 'block';
+
+    container.innerHTML = batchFiles.map((file, index) => `
+        <div class="batch-file-item">
+            <div class="file-icon">🎵</div>
+            <div class="file-info">
+                <div class="file-name">${escapeHtml(file.name)}</div>
+                <div class="file-size">${formatFileSize(file.size)}</div>
+            </div>
+            <button class="file-remove" onclick="removeBatchFile(${index})" title="移除">
+                <span class="material-icons-outlined" style="font-size: 16px;">close</span>
+            </button>
+        </div>
+    `).join('');
+}
+
+/**
+ * 开始批量处理
+ */
+async function startBatchProcess() {
+    if (batchFiles.length === 0) {
+        showToast('请先选择文件', 'error');
+        return;
+    }
+
+    const enableDenoise = document.getElementById('batch-enable-denoise').checked;
+    const autoSummary = document.getElementById('batch-auto-summary').checked;
+
+    showLoading(`正在上传 ${batchFiles.length} 个文件...`);
+
+    try {
+        // 1. 批量上传
+        const uploadResult = await API.batchUpload(batchFiles, enableDenoise, currentDenoiseMethod);
+
+        if (!uploadResult.success) {
+            throw new Error('上传失败');
+        }
+
+        // 2. 过滤成功的文件
+        const successFiles = uploadResult.files.filter(f => f.success);
+        if (successFiles.length === 0) {
+            throw new Error('没有成功上传的文件');
+        }
+
+        // 3. 启动批量处理
+        showLoading('正在启动批量处理...');
+        const batchResult = await API.startBatch(
+            successFiles.map(f => ({
+                filename: f.filename,
+                file_path: f.file_path,
+                chunks: f.chunks
+            })),
+            autoSummary
+        );
+
+        currentBatchTaskId = batchResult.task_id;
+
+        // 4. 清空文件列表
+        batchFiles = [];
+        renderBatchFileList();
+        document.getElementById('btn-batch-start').disabled = true;
+
+        hideLoading();
+        showToast(`批量任务已启动，共 ${batchResult.total} 个文件`, 'success');
+
+        // 5. 开始轮询状态
+        startBatchPolling();
+
+    } catch (error) {
+        hideLoading();
+        showToast('批量处理失败: ' + error.message, 'error');
+    }
+}
+
+/**
+ * 开始轮询批量任务状态
+ */
+function startBatchPolling() {
+    if (batchPollTimer) {
+        clearInterval(batchPollTimer);
+    }
+
+    updateBatchStatus();  // 立即执行一次
+
+    batchPollTimer = setInterval(async () => {
+        await updateBatchStatus();
+    }, 2000);
+}
+
+/**
+ * 更新批量任务状态
+ */
+async function updateBatchStatus() {
+    if (!currentBatchTaskId) return;
+
+    try {
+        const result = await API.getBatchStatus(currentBatchTaskId);
+        const task = result.task;
+
+        // 更新进度信息
+        const taskInfo = document.getElementById('batch-task-info');
+        taskInfo.style.display = 'block';
+
+        const statusText = document.getElementById('batch-task-status');
+        const countText = document.getElementById('batch-task-count');
+        const progressBar = document.getElementById('batch-progress-bar');
+
+        statusText.textContent = getStatusText(task.status);
+        countText.textContent = `${task.completed + task.failed}/${task.total}`;
+        progressBar.style.width = `${((task.completed + task.failed) / task.total) * 100}%`;
+
+        // 渲染任务列表
+        renderBatchTaskList(task.items);
+
+        // 如果任务完成，停止轮询
+        if (task.status === 'done' || task.status === 'partial_error') {
+            clearInterval(batchPollTimer);
+            batchPollTimer = null;
+
+            if (task.failed === 0) {
+                showToast(`批量处理完成！共 ${task.completed} 个文件`, 'success');
+            } else {
+                showToast(`批量处理完成，${task.completed} 成功，${task.failed} 失败`, 'warning');
+            }
+        }
+    } catch (error) {
+        console.error('获取批量状态失败:', error);
+    }
+}
+
+/**
+ * 渲染批量任务列表
+ */
+function renderBatchTaskList(items) {
+    const container = document.getElementById('batch-task-list');
+
+    container.innerHTML = items.map(item => {
+        const iconClass = item.status;
+        const iconMap = {
+            'pending': 'hourglass_empty',
+            'transcribing': 'mic',
+            'summarizing': 'auto_awesome',
+            'done': 'check_circle',
+            'error': 'error'
+        };
+
+        return `
+            <div class="batch-task-item task-${item.status}">
+                <div class="task-icon ${iconClass}">
+                    <span class="material-icons-outlined">${iconMap[item.status] || 'hourglass_empty'}</span>
+                </div>
+                <div class="task-info">
+                    <div class="task-filename">${escapeHtml(item.filename)}</div>
+                    <div class="task-status">${item.progress_message || getStatusText(item.status)}</div>
+                </div>
+                <div class="task-actions">
+                    ${item.status === 'done' && item.record_id ? `
+                        <button onclick="viewRecord('${item.record_id}')" class="md-btn md-btn-text md-btn-sm" title="查看">
+                            <span class="material-icons-outlined" style="font-size: 16px;">visibility</span>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+/**
+ * 获取状态文本
+ */
+function getStatusText(status) {
+    const map = {
+        'pending': '等待中',
+        'processing': '处理中',
+        'done': '已完成',
+        'partial_error': '部分失败'
+    };
+    return map[status] || status;
+}
+
+/**
  * 切换录音状态
  */
 async function toggleRecording() {
@@ -287,14 +833,22 @@ async function toggleRecording() {
                 
                 document.getElementById('transcription-result').textContent = currentTranscription;
                 document.getElementById('btn-summary').disabled = false;
-                
-                // 启用口语优化按钮
                 document.getElementById('btn-polish').disabled = false;
+
+                // 显示思维导图按钮
+                document.getElementById('btn-mindmap').style.display = 'inline-flex';
                 
                 // 重置切换按钮状态
                 isShowingPolished = false;
                 currentPolishedText = '';
                 document.getElementById('view-toggle').style.display = 'none';
+
+                // 重置思维导图状态
+                currentMindmapData = null;
+                isShowingMindmap = false;
+                document.getElementById('summary-view-toggle').style.display = 'none';
+                document.getElementById('summary-result').style.display = 'block';
+                document.getElementById('mindmap-container').style.display = 'none';
                 
                 hideLoading();
                 showToast('录音转写完成！', 'success');
@@ -490,6 +1044,9 @@ async function viewRecord(recordId) {
         document.getElementById('transcription-result').textContent = record.transcription;
         document.getElementById('btn-summary').disabled = false;
         document.getElementById('btn-polish').disabled = false;
+
+        // 显示思维导图按钮
+        document.getElementById('btn-mindmap').style.display = 'inline-flex';
         
         // 如果有优化后的文本，显示切换按钮
         if (currentPolishedText) {
@@ -503,9 +1060,18 @@ async function viewRecord(recordId) {
         const polishedBtn = document.getElementById('btn-view-polished');
         originalBtn.classList.add('active');
         polishedBtn.classList.remove('active');
-        
+
+        // 重置思维导图状态
+        currentMindmapData = null;
+        isShowingMindmap = false;
+        document.getElementById('summary-view-toggle').style.display = 'none';
+        document.getElementById('summary-result').style.display = 'block';
+        document.getElementById('mindmap-container').style.display = 'none';
+
         if (record.summary) {
             document.getElementById('summary-result').innerHTML = renderMarkdown(record.summary);
+        } else {
+            document.getElementById('summary-result').innerHTML = '<p style="color: var(--md-outline); font-style: italic;">等待生成总结...</p>';
         }
         
         showToast('已加载记录', 'success');

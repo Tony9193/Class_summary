@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from pathlib import Path
 
-from app.routers import audio, asr, summary, history, config, polish, models
+from app.routers import audio, asr, summary, history, config, polish, models, batch
 
 logging.basicConfig(
     level=logging.INFO,
@@ -40,6 +40,7 @@ app.include_router(history.router)
 app.include_router(config.router)
 app.include_router(polish.router)
 app.include_router(models.router)
+app.include_router(batch.router)
 
 # 挂载静态文件
 static_dir = Path(__file__).parent.parent / "static"

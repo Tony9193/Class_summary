@@ -178,6 +178,196 @@ class LLMService:
             from app.services.model_service import model_service
             model_service.record_usage(mid, prompt_tokens=500, completion_tokens=1500)
 
+    def _build_mindmap_prompt(self, text: str) -> str:
+        """构建思维导图Prompt"""
+        return f"""你是一个课程内容结构化专家。请将以下课程转写文本转换为思维导图的JSON树形结构。
+
+要求：
+1. 提取课程的核心主题作为根节点
+2. 将内容按照逻辑关系组织为树形结构
+3. 每个节点的title要简洁明了（不超过20个字）
+4. 层级不要太深，最多3-4层
+5. 覆盖课程的主要知识点
+6. 只输出JSON，不要添加任何解释说明
+
+课程转写文本：
+{text}
+
+请严格按以下JSON格式输出：
+{{
+  "title": "课程主题",
+  "children": [
+    {{
+      "title": "知识点1",
+      "children": [
+        {{"title": "子知识点1.1"}},
+        {{"title": "子知识点1.2"}}
+      ]
+    }},
+    {{
+      "title": "知识点2",
+      "children": [
+        {{"title": "子知识点2.1"}}
+      ]
+    }}
+  ]
+}}"""
+
+    async def generate_mindmap(self, text: str, model_id: Optional[str] = None) -> dict:
+        """生成思维导图数据"""
+        import json as json_lib
+        import re
+
+        prompt = self._build_mindmap_prompt(text)
+        client, model, mid = self._get_client(model_id)
+
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是一个课程内容结构化专家，擅长将文本转换为树形思维导图结构。只输出JSON，不要解释。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5,
+            max_tokens=3000
+        )
+
+        self._record_usage(mid, response)
+
+        if not response or not response.choices or len(response.choices) == 0:
+            raise Exception("AI模型返回了空响应，请检查模型配置")
+
+        content = response.choices[0].message.content
+        if not content:
+            raise Exception("AI模型返回了空内容，请重试")
+
+        # 提取JSON部分
+        json_match = re.search(r'\{[\s\S]*\}', content)
+        if not json_match:
+            raise Exception("AI返回的内容中未找到有效的JSON结构")
+
+        try:
+            mindmap_data = json_lib.loads(json_match.group())
+        except json_lib.JSONDecodeError as e:
+            raise Exception(f"JSON解析失败: {str(e)}")
+
+        return mindmap_data
+
+    async def generate_mindmap_stream(self, text: str, model_id: Optional[str] = None):
+        """流式生成思维导图（暂用非流式，返回完整结果）"""
+        result = await self.generate_mindmap(text, model_id)
+        import json as json_lib
+        yield json_lib.dumps(result, ensure_ascii=False)
+
+    def _build_explain_prompt(self, keyword: str, context: str) -> str:
+        """构建知识点解析Prompt"""
+        return f"""请根据课程内容，对「{keyword}」进行深入解析。
+
+课程原文片段：
+---
+{context[:3000]}
+---
+
+输出要求：
+1. 先用一句话概括核心含义
+2. 分点列出关键要点（3-5个），每个要点结合课程中的具体描述
+3. 举一个实际应用或例子帮助理解
+4. 指出与哪些课程中的其他知识点有关联
+5. 语气亲切易懂，像一位耐心的老师在讲解
+6. 使用Markdown格式，标题用##，要点用-"""
+
+    async def explain_keyword(self, keyword: str, context: str, model_id: Optional[str] = None) -> str:
+        """对知识点进行AI深入解析"""
+        prompt = self._build_explain_prompt(keyword, context)
+        client, model, mid = self._get_client(model_id)
+
+        response = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是一位经验丰富的大学老师，擅长用通俗易懂的语言讲解复杂概念。你会结合课程原文进行分析，引用原文中的关键语句来佐证你的解释。回答要有条理，使用Markdown格式。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=3000
+        )
+
+        self._record_usage(mid, response)
+
+        if not response or not response.choices or len(response.choices) == 0:
+            raise Exception("AI模型返回了空响应，请检查模型配置")
+
+        content = response.choices[0].message.content
+        if not content:
+            raise Exception("AI模型返回了空内容，请重试")
+
+        return content
+
+    async def explain_keyword_stream(self, keyword: str, context: str, model_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+        """流式知识点解析"""
+        prompt = self._build_explain_prompt(keyword, context)
+        client, model, mid = self._get_client(model_id)
+
+        stream = await client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "你是一位经验丰富的大学老师，擅长用通俗易懂的语言讲解复杂概念。你会结合课程原文进行分析，引用原文中的关键语句来佐证你的解释。回答要有条理，使用Markdown格式。"},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=3000,
+            stream=True
+        )
+
+        async for chunk in stream:
+            if not chunk or not chunk.choices or len(chunk.choices) == 0:
+                continue
+            if chunk.choices[0].delta and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
+        if mid:
+            from app.services.model_service import model_service
+            model_service.record_usage(mid, prompt_tokens=500, completion_tokens=1500)
+
+    async def explain_followup_stream(self, keyword: str, context: str, history: list[dict], question: str, model_id: Optional[str] = None) -> AsyncGenerator[str, None]:
+        """
+        知识点追问（支持多轮对话）
+        history: [{"role": "user"/"assistant", "content": "..."}]
+        """
+        client, model, mid = self._get_client(model_id)
+
+        system_msg = f"""你是一位经验丰富的大学老师，正在为学生讲解「{keyword}」这个知识点。
+学生已经看过你的初始解析，现在有后续问题。
+
+课程原文片段：
+{context[:2000]}
+
+回答要求：
+1. 紧扣课程内容，引用原文中的相关描述
+2. 如果问题超出课程范围，可以适当拓展但要说明
+3. 用通俗易懂的语言，像老师和学生对话一样自然
+4. 使用Markdown格式让回答更清晰"""
+
+        messages = [{"role": "system", "content": system_msg}]
+        messages.extend(history)
+        messages.append({"role": "user", "content": question})
+
+        stream = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.7,
+            max_tokens=2000,
+            stream=True
+        )
+
+        async for chunk in stream:
+            if not chunk or not chunk.choices or len(chunk.choices) == 0:
+                continue
+            if chunk.choices[0].delta and chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
+        if mid:
+            from app.services.model_service import model_service
+            model_service.record_usage(mid, prompt_tokens=300, completion_tokens=1000)
+
     def _build_polish_prompt(self, text: str) -> str:
         """构建口语优化Prompt"""
         return f"""你是一个专业的文本优化助手。请将以下课堂录音转写的口语化文本优化为规范的书面语。
