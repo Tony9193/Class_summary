@@ -901,7 +901,7 @@ async function polishTranscription() {
     
     try {
         currentPolishedText = '';
-        const polishedResult = document.getElementById('transcription-polished');
+        const polishedResult = document.getElementById('transcription-result');
         
         await API.polishTextStream(
             currentTranscription,

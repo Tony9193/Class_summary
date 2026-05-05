@@ -17,7 +17,7 @@ class AudioRecorder {
         this.canvas = null;
         this.canvasCtx = null;
         this.animationId = null;
-        this.debug = true; // 开启调试
+        this.debug = false; // 关闭调试
     }
 
     /**
@@ -45,7 +45,7 @@ class AudioRecorder {
     }
 
     /**
-     * 设置Canvas尺寸
+     * 设置Canvas尺寸（支持高DPI屏幕）
      */
     setupCanvas() {
         if (!this.canvas) return;
@@ -55,12 +55,19 @@ class AudioRecorder {
         const width = parent ? parent.clientWidth : 300;
         const height = 80;
         
-        this.canvas.width = width;
-        this.canvas.height = height;
+        // 高DPI适配
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
         this.canvas.style.width = width + 'px';
         this.canvas.style.height = height + 'px';
         
-        this.log('Canvas尺寸设置: ' + width + 'x' + height);
+        // 缩放Canvas上下文以匹配DPR
+        if (this.canvasCtx) {
+            this.canvasCtx.scale(dpr, dpr);
+        }
+        
+        this.log('Canvas尺寸设置: ' + width + 'x' + height + ', DPR: ' + dpr);
     }
 
     /**

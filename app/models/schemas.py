@@ -4,11 +4,17 @@ from typing import Optional, List
 from datetime import datetime
 
 
+class TranscribeRequest(BaseModel):
+    """转写请求"""
+    file_path: str
+    chunks: Optional[List[str]] = None  # 分段文件列表
+
+
 class SummaryRequest(BaseModel):
     """总结请求"""
     model_config = {'protected_namespaces': ()}
 
-    text: str
+    text: str = Field(..., max_length=100000, description="转写文本")
     task_id: Optional[str] = None
     model_id: Optional[str] = None
 
@@ -62,7 +68,7 @@ class MindmapRequest(BaseModel):
     """思维导图请求"""
     model_config = {'protected_namespaces': ()}
 
-    text: str
+    text: str = Field(..., max_length=100000, description="转写文本")
     record_id: Optional[str] = None
     model_id: Optional[str] = None
 
@@ -78,8 +84,8 @@ class ExplainRequest(BaseModel):
     """知识点解析请求"""
     model_config = {'protected_namespaces': ()}
 
-    keyword: str
-    context: str
+    keyword: str = Field(..., max_length=200, description="知识点关键词")
+    context: str = Field(..., max_length=100000, description="上下文文本")
     model_id: Optional[str] = None
 
 
@@ -87,10 +93,10 @@ class ExplainFollowupRequest(BaseModel):
     """知识点追问请求"""
     model_config = {'protected_namespaces': ()}
 
-    keyword: str
-    context: str
+    keyword: str = Field(..., max_length=200, description="知识点关键词")
+    context: str = Field(..., max_length=100000, description="上下文文本")
     history: list[dict] = []  # [{"role": "user"/"assistant", "content": "..."}]
-    question: str
+    question: str = Field(..., max_length=2000, description="追问问题")
     model_id: Optional[str] = None
 
 
@@ -116,9 +122,18 @@ class PolishRequest(BaseModel):
     """口语优化请求"""
     model_config = {'protected_namespaces': ()}
     
-    text: str
+    text: str = Field(..., max_length=100000, description="转写文本")
     task_id: Optional[str] = None
     model_id: Optional[str] = None
+
+
+class ConfigUpdate(BaseModel):
+    """配置更新请求"""
+    step_api_key: Optional[str] = None
+    llm_api_key: Optional[str] = None
+    llm_base_url: Optional[str] = None
+    llm_model: Optional[str] = None
+    denoise_method: Optional[str] = None
 
 
 # 模型配置相关数据模型

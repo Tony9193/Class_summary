@@ -12,6 +12,9 @@ from app.services.storage_service import storage_service
 
 logger = logging.getLogger(__name__)
 
+# 并发控制：最多同时处理3个文件
+MAX_CONCURRENT_FILES = 3
+
 
 class BatchService:
     """批量处理服务"""
@@ -20,6 +23,61 @@ class BatchService:
         self.tasks: dict[str, BatchTask] = {}
         self._running = False
         self._current_task_id: Optional[str] = None
+        self._semaphore = asyncio.Semaphore(MAX_CONCURRENT_FILES)
+
+    async def _process_single_item(self, item: BatchTaskItem, auto_summary: bool):
+        """处理单个文件（受信号量控制）"""
+        async with self._semaphore:
+            try:
+                # 更新状态
+                item.status = "transcribing"
+                item.progress_message = "正在转写..."
+                logger.info(f"[批量] 开始转写: {item.filename}")
+
+                # 转写
+                file_paths = item.chunks if item.chunks else [item.file_path]
+                full_text = ""
+
+                for i, chunk_path in enumerate(file_paths):
+                    chunk_text = await asr_service.transcribe_file_sync(chunk_path)
+                    if len(file_paths) > 1 and i > 0:
+                        full_text += "\n\n"
+                    full_text += chunk_text
+
+                item.transcription = full_text
+                logger.info(f"[批量] 转写完成: {item.filename}, 长度: {len(full_text)}")
+
+                # 保存到历史记录
+                record = storage_service.create_record(item.filename, full_text)
+                item.record_id = record.id
+
+                # 自动生成总结
+                if auto_summary and full_text.strip():
+                    item.status = "summarizing"
+                    item.progress_message = "正在生成总结..."
+                    try:
+                        result = await llm_service.generate_summary(full_text)
+                        item.summary = result["summary"]
+                        storage_service.update_record(
+                            record.id,
+                            summary=result["summary"],
+                            key_points=result.get("key_points")
+                        )
+                        logger.info(f"[批量] 总结完成: {item.filename}")
+                    except Exception as e:
+                        logger.warning(f"[批量] 生成总结失败: {item.filename}, {e}")
+                        item.summary = None
+
+                item.status = "done"
+                item.progress_message = "完成"
+                return True
+
+            except Exception as e:
+                logger.error(f"[批量] 处理失败: {item.filename}, {e}")
+                item.status = "error"
+                item.error = str(e)
+                item.progress_message = f"错误: {str(e)}"
+                return False
 
     def create_task(self, files: list[dict], auto_summary: bool = False) -> BatchTask:
         """
@@ -64,7 +122,7 @@ class BatchService:
         return list(self.tasks.values())
 
     async def _process_task(self, task_id: str, auto_summary: bool = False):
-        """处理批量任务"""
+        """处理批量任务（并发执行）"""
         task = self.tasks.get(task_id)
         if not task:
             return
@@ -72,56 +130,20 @@ class BatchService:
         task.status = "processing"
         self._current_task_id = task_id
 
-        for item in task.items:
-            try:
-                # 更新状态
-                item.status = "transcribing"
-                item.progress_message = "正在转写..."
-                logger.info(f"[批量] 开始转写: {item.filename}")
+        # 并发处理所有文件
+        tasks = [
+            self._process_single_item(item, auto_summary)
+            for item in task.items
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                # 转写
-                file_paths = item.chunks if item.chunks else [item.file_path]
-                full_text = ""
-
-                for i, chunk_path in enumerate(file_paths):
-                    chunk_text = await asr_service.transcribe_file_sync(chunk_path)
-                    if len(file_paths) > 1 and i > 0:
-                        full_text += "\n\n"
-                    full_text += chunk_text
-
-                item.transcription = full_text
-                logger.info(f"[批量] 转写完成: {item.filename}, 长度: {len(full_text)}")
-
-                # 保存到历史记录
-                record = storage_service.create_record(item.filename, full_text)
-                item.record_id = record.id
-
-                # 自动生成总结
-                if auto_summary and full_text.strip():
-                    item.status = "summarizing"
-                    item.progress_message = "正在生成总结..."
-                    try:
-                        result = await llm_service.generate_summary(full_text)
-                        item.summary = result["summary"]
-                        storage_service.update_record(
-                            record.id,
-                            summary=result["summary"],
-                            key_points=result.get("key_points")
-                        )
-                        logger.info(f"[批量] 总结完成: {item.filename}")
-                    except Exception as e:
-                        logger.warning(f"[批量] 生成总结失败: {item.filename}, {e}")
-                        item.summary = None
-
-                item.status = "done"
-                item.progress_message = "完成"
+        # 统计结果
+        for result in results:
+            if isinstance(result, Exception):
+                task.failed += 1
+            elif result:
                 task.completed += 1
-
-            except Exception as e:
-                logger.error(f"[批量] 处理失败: {item.filename}, {e}")
-                item.status = "error"
-                item.error = str(e)
-                item.progress_message = f"错误: {str(e)}"
+            else:
                 task.failed += 1
 
         # 更新任务状态
@@ -130,7 +152,7 @@ class BatchService:
         elif task.completed > 0:
             task.status = "partial_error"
         else:
-            task.status = "done"
+            task.status = "error"
 
         task.completed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self._current_task_id = None

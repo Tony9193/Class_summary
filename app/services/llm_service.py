@@ -70,6 +70,16 @@ class LLMService:
                 completion_tokens=response.usage.completion_tokens or 0
             )
 
+    def _estimate_tokens(self, text: str) -> int:
+        """估算文本的token数量（中文约1.5字符/token，英文约4字符/token）"""
+        if not text:
+            return 0
+        # 统计中文和非中文字符
+        chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+        other_chars = len(text) - chinese_chars
+        # 估算token数
+        return int(chinese_chars / 1.5 + other_chars / 4)
+
     def _build_summary_prompt(self, text: str) -> str:
         """构建课程总结Prompt"""
         return f"""你是一个专业的课程笔记整理助手。请根据以下课程录音转写文本，生成结构化的课程总结。
@@ -166,17 +176,22 @@ class LLMService:
             stream=True
         )
 
+        completion_text = ""
         async for chunk in stream:
             # 安全检查：确保chunk和choices有效
             if not chunk or not chunk.choices or len(chunk.choices) == 0:
                 continue
             if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                completion_text += content
+                yield content
 
-        # 流式完成后记录用量（近似值）
+        # 流式完成后记录用量（基于实际输出估算）
         if mid:
             from app.services.model_service import model_service
-            model_service.record_usage(mid, prompt_tokens=500, completion_tokens=1500)
+            prompt_tokens = self._estimate_tokens(prompt)
+            completion_tokens = self._estimate_tokens(completion_text)
+            model_service.record_usage(mid, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
 
     def _build_mindmap_prompt(self, text: str) -> str:
         """构建思维导图Prompt"""
@@ -317,15 +332,20 @@ class LLMService:
             stream=True
         )
 
+        completion_text = ""
         async for chunk in stream:
             if not chunk or not chunk.choices or len(chunk.choices) == 0:
                 continue
             if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                completion_text += content
+                yield content
 
         if mid:
             from app.services.model_service import model_service
-            model_service.record_usage(mid, prompt_tokens=500, completion_tokens=1500)
+            prompt_tokens = self._estimate_tokens(prompt)
+            completion_tokens = self._estimate_tokens(completion_text)
+            model_service.record_usage(mid, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
 
     async def explain_followup_stream(self, keyword: str, context: str, history: list[dict], question: str, model_id: Optional[str] = None) -> AsyncGenerator[str, None]:
         """
@@ -358,15 +378,21 @@ class LLMService:
             stream=True
         )
 
+        completion_text = ""
         async for chunk in stream:
             if not chunk or not chunk.choices or len(chunk.choices) == 0:
                 continue
             if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                completion_text += content
+                yield content
 
         if mid:
             from app.services.model_service import model_service
-            model_service.record_usage(mid, prompt_tokens=300, completion_tokens=1000)
+            prompt_text = system_msg + question
+            prompt_tokens = self._estimate_tokens(prompt_text)
+            completion_tokens = self._estimate_tokens(completion_text)
+            model_service.record_usage(mid, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
 
     def _build_polish_prompt(self, text: str) -> str:
         """构建口语优化Prompt"""
@@ -436,17 +462,22 @@ class LLMService:
             stream=True
         )
 
+        completion_text = ""
         async for chunk in stream:
             # 安全检查：确保chunk和choices有效
             if not chunk or not chunk.choices or len(chunk.choices) == 0:
                 continue
             if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                completion_text += content
+                yield content
 
-        # 流式完成后记录用量（近似值）
+        # 流式完成后记录用量（基于实际输出估算）
         if mid:
             from app.services.model_service import model_service
-            model_service.record_usage(mid, prompt_tokens=500, completion_tokens=1500)
+            prompt_tokens = self._estimate_tokens(prompt)
+            completion_tokens = self._estimate_tokens(completion_text)
+            model_service.record_usage(mid, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
 
 
 # 全局单例

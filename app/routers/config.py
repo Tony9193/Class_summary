@@ -2,21 +2,11 @@
 import os
 import shutil
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
 
 from app.config import get_config, save_config, UPLOADS_DIR, HISTORY_DIR
+from app.models.schemas import ConfigUpdate
 
 router = APIRouter(prefix="/api/config", tags=["配置"])
-
-
-class ConfigUpdate(BaseModel):
-    """配置更新请求"""
-    step_api_key: Optional[str] = None
-    llm_api_key: Optional[str] = None
-    llm_base_url: Optional[str] = None
-    llm_model: Optional[str] = None
-    denoise_method: Optional[str] = None
 
 
 @router.get("")
@@ -84,32 +74,6 @@ async def test_asr_connection():
         return {"success": False, "message": "API Key格式不正确，长度过短"}
     
     return {"success": True, "message": "API Key格式正确"}
-
-
-@router.post("/test/llm")
-async def test_llm_connection():
-    """测试LLM连接"""
-    from app.config import get_llm_api_key, get_llm_base_url, get_llm_model
-    from openai import AsyncOpenAI
-    
-    api_key = get_llm_api_key()
-    base_url = get_llm_base_url()
-    model = get_llm_model()
-    
-    if not api_key:
-        return {"success": False, "message": "未配置LLM API Key"}
-    
-    try:
-        client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-        # 尝试发送一个简单请求
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": "Hello"}],
-            max_tokens=10
-        )
-        return {"success": True, "message": f"连接成功，模型: {model}"}
-    except Exception as e:
-        return {"success": False, "message": f"连接失败: {str(e)}"}
 
 
 @router.post("/test/llm")

@@ -1,21 +1,15 @@
 """ASR转写路由"""
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse, JSONResponse
-from pydantic import BaseModel
-from typing import List, Optional
 import json
 import logging
 
 from app.services.asr_service import asr_service
 from app.services.storage_service import storage_service
+from app.models.schemas import TranscribeRequest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/asr", tags=["ASR"])
-
-
-class TranscribeRequest(BaseModel):
-    file_path: str
-    chunks: Optional[List[str]] = None  # 分段文件列表
 
 
 @router.post("/transcribe")
@@ -27,10 +21,10 @@ async def transcribe_audio(request: TranscribeRequest):
         
         full_text = ""
         for i, chunk_path in enumerate(file_paths):
-            print(f"[ASR路由] 开始转写第 {i+1}/{len(file_paths)} 段: {chunk_path}")
+            logger.info(f"[ASR路由] 开始转写第 {i+1}/{len(file_paths)} 段: {chunk_path}")
             # 转写每一段
             chunk_text = await asr_service.transcribe_file_sync(chunk_path)
-            print(f"[ASR路由] 第 {i+1} 段转写完成，文本长度: {len(chunk_text)}")
+            logger.info(f"[ASR路由] 第 {i+1} 段转写完成，文本长度: {len(chunk_text)}")
             
             # 多段时添加分隔
             if len(file_paths) > 1:
@@ -40,12 +34,12 @@ async def transcribe_audio(request: TranscribeRequest):
             else:
                 full_text = chunk_text
         
-        print(f"[ASR路由] 全部转写完成，总文本长度: {len(full_text)}")
+        logger.info(f"[ASR路由] 全部转写完成，总文本长度: {len(full_text)}")
         # 保存到历史记录
         from pathlib import Path
         filename = Path(request.file_path).name
         record = storage_service.create_record(filename, full_text)
-        print(f"[ASR路由] 记录已保存，ID: {record.id}")
+        logger.info(f"[ASR路由] 记录已保存，ID: {record.id}")
         
         return {
             "success": True,

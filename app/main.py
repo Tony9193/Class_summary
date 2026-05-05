@@ -2,7 +2,7 @@
 import logging
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pathlib import Path
 
 from app.routers import audio, asr, summary, history, config, polish, models, batch
@@ -57,3 +57,12 @@ async def index():
 async def health():
     """健康检查"""
     return {"status": "ok", "version": "1.0.0"}
+
+
+@app.get("/favicon.ico")
+async def favicon():
+    """返回favicon（空响应避免404）"""
+    # 返回一个1x1透明PNG
+    import base64
+    pixel = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQI12NgAAIABQABNjN9GQAAAABJREFUeJztzDEBAAAIwzDAv+dhAhdOAAAA0wEA7wGzAAAAAElFTkSuQmCC")
+    return Response(content=pixel, media_type="image/png")
